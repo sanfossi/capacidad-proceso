@@ -1,0 +1,864 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Análisis de Capacidad de Proceso</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Source+Code+Pro:wght@400;500&display=swap">
+<style>
+/* Layout: statistics workbench — worksheet column on the left, report window with graph tabs on the right */
+:root{
+  --bg:#eef1f5; --chrome:#1e2a38; --chrome-ink:#eef3f8; --chrome-accent:#7db3ef; --panel:#ffffff; --ink:#1c2733; --muted:#5d6b7a; --line:#d5dce4; --soft:#f3f6f9; --zebra:#f7f9fb; --grid:#e6ebf0;
+  --accent:#2563a8; --bar:#a9c3df; --bar-line:#4f7cad; --within:#c0392b; --overall:#1c2733; --spec:#c0392b; --target:#1f8a4c;
+  --good:#1f8a4c; --good-bg:#e2f2e8; --mid:#a76a00; --mid-bg:#fdf0d5; --bad:#b3261e; --bad-bg:#fbe4e2; --danger:#b3261e;
+  --f-ui:"Source Sans 3","Segoe UI",system-ui,-apple-system,Arial,sans-serif;
+  --f-num:"Source Code Pro",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e141b; --chrome:#0a0f15; --chrome-ink:#e6edf4; --chrome-accent:#7db3ef; --panel:#17202a; --ink:#e2e9f0; --muted:#95a3b2; --line:#2a3744; --soft:#1d2833; --zebra:#1a242e; --grid:#24303c;
+  --accent:#6ea6e6; --bar:#2f5174; --bar-line:#7fa9d6; --within:#f07a6e; --overall:#e2e9f0; --spec:#f07a6e; --target:#5cc489;
+  --good:#6fd093; --good-bg:#163020; --mid:#f0b54d; --mid-bg:#33270f; --bad:#f58b8b; --bad-bg:#3a1a1a; --danger:#c93a3a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e141b; --chrome:#0a0f15; --chrome-ink:#e6edf4; --chrome-accent:#7db3ef; --panel:#17202a; --ink:#e2e9f0; --muted:#95a3b2; --line:#2a3744; --soft:#1d2833; --zebra:#1a242e; --grid:#24303c;
+  --accent:#6ea6e6; --bar:#2f5174; --bar-line:#7fa9d6; --within:#f07a6e; --overall:#e2e9f0; --spec:#f07a6e; --target:#5cc489;
+  --good:#6fd093; --good-bg:#163020; --mid:#f0b54d; --mid-bg:#33270f; --bad:#f58b8b; --bad-bg:#3a1a1a; --danger:#c93a3a; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 var(--f-ui)}
+.bar-top{background:var(--chrome);color:var(--chrome-ink);border-bottom:3px solid var(--accent)}
+.bar-top .in{max-width:1400px;margin:0 auto;padding-block:0;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-wrap:wrap;gap:0 24px;align-items:stretch;justify-content:space-between}
+.brand{display:flex;align-items:center;gap:10px;padding-block:12px}
+.brand svg{flex:none}
+.brand b{font:700 18px/1.15 var(--f-ui);letter-spacing:.01em}
+.brand-t{display:grid;gap:1px}
+.brand small{font:500 11.5px var(--f-ui);opacity:.72;letter-spacing:.01em}
+.ribbon{display:flex;gap:0;flex-wrap:wrap;align-items:stretch}
+.ribbon button{display:inline-flex;align-items:center;gap:7px;background:transparent;border:0;border-bottom:3px solid transparent;margin-bottom:-3px;color:var(--chrome-ink);opacity:.72;font:600 13px var(--f-ui);padding:12px 13px 10px;cursor:pointer}
+.ribbon button svg{width:15px;height:15px;flex:none}
+.ribbon button[aria-selected="true"]{opacity:1;border-bottom-color:var(--chrome-accent);color:#fff}
+.ribbon button:hover{opacity:1;background:rgba(255,255,255,.06)}
+.main{max-width:1400px;margin:0 auto;padding-block:16px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;grid-template-columns:300px minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:900px){.main{grid-template-columns:minmax(0,1fr)}}
+.win{background:var(--panel);border:1px solid var(--line);border-radius:6px;min-width:0}
+.win>header{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--soft);border-radius:6px 6px 0 0}
+.win>header h2{margin:0;font:700 13px var(--f-ui);letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.win .bd{padding:12px;display:grid;gap:12px}
+.f{display:grid;gap:3px;font-size:12px;color:var(--muted);font-weight:600}
+input,select,textarea{font:14px var(--f-ui);color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:6px 8px;width:100%;min-width:0}
+input[type=number],textarea{font-family:var(--f-num)}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+textarea{min-height:220px;resize:vertical;font-size:13px;line-height:1.5}
+.g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);font:600 13px var(--f-ui);padding:6px 10px;border-radius:4px;cursor:pointer}
+.btn.danger{background:var(--danger);border-color:var(--danger);color:#fff}
+.btn.danger:hover{filter:brightness(1.08)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.note{font-size:12px;color:var(--muted)}
+.chk{display:flex;gap:6px;align-items:flex-start;font-size:13px}
+.chk input{width:auto;margin-top:3px}
+.err{color:var(--bad);font-size:12px;font-weight:600}
+.err:empty,.note:empty{display:none}
+.sec{display:grid;gap:9px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.sec:last-of-type{border-bottom:0}
+.sec-h{margin:0;font:700 11.5px var(--f-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:1px}
+.dot.spec{background:var(--spec)} .dot.tgt{background:var(--target)}
+.btn.calc{width:100%;padding:11px 12px;font-size:15px;letter-spacing:.02em}
+.btn.calc:hover{filter:brightness(1.08)}
+.linkbtn{background:none;border:0;color:var(--muted);font:600 12.5px var(--f-ui);cursor:pointer;text-decoration:underline;text-underline-offset:2px;padding:2px;justify-self:center}
+.linkbtn:hover{color:var(--bad)}
+.opts{border:1px solid var(--line);border-radius:5px;background:var(--soft)}
+.opts>summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;padding:8px 10px;font:700 12.5px var(--f-ui);color:var(--ink)}
+.opts>summary::-webkit-details-marker{display:none}
+.opts>summary::before{content:"";width:0;height:0;border-left:5px solid var(--muted);border-top:4px solid transparent;border-bottom:4px solid transparent;transition:transform .15s}
+.opts[open]>summary::before{transform:rotate(90deg)}
+.opts>div{padding:0 10px 10px}
+.stale{background:var(--mid-bg);color:var(--mid);border-radius:4px;padding:6px 8px;font-size:12px;font-weight:600}
+/* KPI row */
+.kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+@media (max-width:760px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:440px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{border:1px solid var(--line);border-radius:6px;padding:10px 12px;display:grid;gap:2px;background:var(--panel)}
+.kpi span{font:700 11.5px var(--f-ui);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.kpi b{font:600 26px/1.1 var(--f-num);font-variant-numeric:tabular-nums;color:var(--ink)}
+.kpi em{font-style:normal;font-size:12px;font-weight:700}
+.kpi.good{background:var(--good-bg);border-color:transparent}.kpi.good b,.kpi.good em{color:var(--good)}
+.kpi.mid{background:var(--mid-bg);border-color:transparent}.kpi.mid b,.kpi.mid em{color:var(--mid)}
+.kpi.bad{background:var(--bad-bg);border-color:transparent}.kpi.bad b,.kpi.bad em{color:var(--bad)}
+/* empty state */
+.empty{display:grid;justify-items:center;gap:10px;text-align:center;padding:56px 16px}
+.empty h2{margin:0;font:700 18px var(--f-ui)}
+.empty p{margin:0;color:var(--muted);max-width:46ch}
+/* footer + status bar */
+.appfoot{max-width:1400px;margin:0 auto;padding-block:0 18px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));font-size:12px;color:var(--muted);text-align:center}
+.status{position:sticky;bottom:0;z-index:5;background:var(--chrome);color:var(--chrome-ink);font:500 12px var(--f-num);border-top:1px solid var(--line)}
+.status .in{max-width:1400px;margin:0 auto;padding-block:6px calc(6px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-wrap:wrap;gap:4px 22px}
+.status span{opacity:.85} .status b{font-weight:600;opacity:1}
+.status .ok{color:#7fd6a0}
+/* report */
+.rep{padding:16px;display:grid;gap:14px;grid-template-columns:minmax(0,1fr)}
+.rep h1{overflow-wrap:anywhere}
+.rep h1{margin:0;font:700 19px/1.2 var(--f-ui);text-align:center;text-wrap:balance}
+.rep .sub{text-align:center;color:var(--muted);font-size:13px;margin-top:-8px}
+.cols{display:grid;grid-template-columns:235px minmax(0,1fr) 200px;gap:14px;align-items:start}
+@media (max-width:1150px){.cols{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.cols .hist{grid-column:1/-1;order:-1}}
+@media (max-width:520px){.cols{grid-template-columns:minmax(0,1fr)}}
+.stat{border:1px solid var(--line);border-radius:4px}
+.stat h3{margin:0;font:700 12.5px var(--f-ui);padding:5px 8px;background:var(--soft);border-bottom:1px solid var(--line)}
+.stat dl{margin:0;padding:4px 4px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;font-size:13px}
+.stat dd{font-size:12.5px}
+.stat dt{color:var(--muted)} .stat dd{margin:0;text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.stat dd.k{font-weight:700;color:var(--ink)}
+.stat dt.k{color:var(--ink);font-weight:600}
+.stack{display:grid;gap:10px}
+svg text{font-family:var(--f-ui)}
+.chart svg{width:100%;height:auto;display:block}
+.legend{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:18px;height:0;border-top:2px solid;vertical-align:middle;margin-right:5px}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:5px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{font-weight:700;background:var(--soft);color:var(--muted);font-size:12px}
+th:first-child,td:first-child,.l{text-align:left}
+td.n{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+tr:nth-child(even) td{background:var(--zebra)}
+.stat dl>dt:nth-of-type(even),.stat dl>dd:nth-of-type(even){background:var(--zebra)}
+.stat dl{gap:0 10px}
+.stat dt,.stat dd{padding:2px 4px}
+tr.hl td{background:var(--bad-bg)}
+.verdict{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.pill{font:700 12px var(--f-ui);padding:4px 10px;border-radius:999px}
+.pill.good{background:var(--good-bg);color:var(--good)}.pill.mid{background:var(--mid-bg);color:var(--mid)}.pill.bad{background:var(--bad-bg);color:var(--bad)}
+.six{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:1100px){.six{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:620px){.six{grid-template-columns:minmax(0,1fr)}}
+.six .cell{border:1px solid var(--line);border-radius:4px;padding:8px;display:grid;gap:4px;min-width:0}
+.six .cell h3{margin:0;font:700 12.5px var(--f-ui)}
+.prose{max-width:80ch;display:grid;gap:10px}
+.prose p,.prose li{margin:0}
+.prose ul{margin:0;padding-left:20px;display:grid;gap:6px}
+.eq{font-family:var(--f-num);background:var(--soft);border-radius:4px;padding:8px 12px;font-size:12.5px;white-space:pre;overflow-x:auto}
+.interp{display:grid;gap:14px;max-width:86ch;margin:0 auto;width:100%}
+.it{display:grid;gap:8px;border-top:1px solid var(--line);padding-top:12px}
+.it h2{margin:0;font:700 15px var(--f-ui)}
+.it p,.it li{margin:0;line-height:1.55}
+.it ul{margin:0;padding-left:20px;display:grid;gap:6px}
+.rec{margin:0;padding-left:22px;display:grid;gap:10px}
+.rec p{color:var(--ink);margin-top:2px}
+.ok{color:var(--good);font-weight:700}.ko{color:var(--bad);font-weight:700}
+/* ---- printable report ---- */
+.inf-tools{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between}
+.pwrap{overflow-x:auto;background:var(--soft);padding:16px;border-radius:4px}
+#printRoot{--panel:#ffffff;--ink:#1d2733;--muted:#5f6c7a;--line:#d3dae2;--soft:#f1f4f7;--accent:#2563a8;--bar:#a9c3df;--bar-line:#4f7cad;--grid:#e6ebf0;--zebra:#f7f9fb;--within:#c62f2f;--overall:#1d2733;--spec:#c62f2f;--target:#2c8a4b;
+  --good:#2c8a4b;--good-bg:#e3f3e8;--mid:#9a6400;--mid-bg:#fff1d6;--bad:#b42323;--bad-bg:#fbe3e3;color:var(--ink);display:grid;gap:18px;justify-content:center}
+.page{width:8.5in;height:11in;padding:.42in .5in .36in;background:#fff;color:var(--ink);box-shadow:0 2px 10px rgba(0,0,0,.18);display:flex;flex-direction:column;gap:7px;overflow:hidden;font:9.2pt/1.35 var(--f-ui)}
+.page svg{width:100%;height:auto;display:block}
+.page h3{margin:4px 0 0;font:700 1.12em var(--f-ui);color:#1e2a38;border-bottom:1.5px solid #1e2a38;padding-bottom:2px}
+.page h4{margin:0 0 2px;font:700 .95em var(--f-ui)}
+.page p{margin:0}
+.ph{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;border-bottom:3px solid #1e2a38;padding-bottom:5px}
+.ph-l{display:flex;align-items:flex-end;gap:12px}
+.ph .pk{font:700 .85em var(--f-ui);letter-spacing:.08em;text-transform:uppercase;color:#2563a8}
+.ph .pt{font:700 1.45em/1.15 var(--f-ui);max-width:5.6in}
+.ph .pm{text-align:right;font-size:.9em;color:var(--muted)}
+.pf{margin-top:auto;border-top:1px solid var(--line);padding-top:4px;font-size:.8em;color:var(--muted);text-align:center}
+.meta{display:flex;flex-wrap:wrap;gap:4px 22px;font-size:.95em}
+.meta span{color:var(--muted);margin-right:5px}
+.exec{background:var(--soft);border-radius:4px;padding:7px 10px;display:grid;gap:5px}
+.verdicts{display:flex;gap:6px;flex-wrap:wrap}
+.page .pill{font-size:.85em;padding:2px 8px}
+.tiles{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.tile{border:1px solid var(--line);border-radius:4px;padding:4px 6px;display:grid;gap:1px}
+.tile span{font-size:.78em;color:var(--muted)} .tile b{font:600 1.35em var(--f-num)}
+.tile.good b{color:var(--good)} .tile.mid b{color:var(--mid)} .tile.bad b{color:var(--bad)}
+.fig .lg{display:flex;gap:16px;justify-content:center;font-size:.85em;color:var(--muted)}
+.fig .lg i{display:inline-block;width:16px;border-top:2px solid;vertical-align:middle;margin-right:4px}
+.fig .lg i.w{border-color:var(--within)} .fig .lg i.o{border-color:var(--overall);border-top-style:dashed} .fig .lg i.s{border-color:var(--spec);border-top-style:dashed}
+.two{display:grid;grid-template-columns:1fr 1.25fr;gap:12px;align-items:start}
+.pt2{width:100%;border-collapse:collapse;font-size:.95em}
+.pt2 th{background:#1e2a38;color:#fff;text-align:left;padding:3px 6px;font-size:.9em}
+.pt2 td{padding:2px 6px;border-bottom:1px solid var(--line);text-align:right;font-family:var(--f-num);font-size:.95em}
+.pt2 td:first-child{text-align:left;font-family:var(--f-ui)}
+.grid4{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px}
+.checks,.recs{margin:0;padding-left:18px;display:grid;gap:3px}
+.checks li.s-ok::marker{color:var(--good)} .checks li.s-mid::marker{color:var(--mid)} .checks li.s-ko::marker{color:var(--bad)}
+.checks li.s-ok b{color:var(--good)} .checks li.s-mid b{color:var(--mid)} .checks li.s-ko b{color:var(--bad)}
+.imp{font:700 .78em var(--f-ui);padding:1px 6px;border-radius:999px}
+.imp.Alto{background:var(--bad-bg);color:var(--bad)} .imp.Medio{background:var(--mid-bg);color:var(--mid)} .imp.Bajo{background:var(--good-bg);color:var(--good)}
+@page{size:letter;margin:0}
+@media print{
+  html,body{background:#fff!important} :root{padding:0!important}
+  .bar-top,aside,#empty,.status,.appfoot,#v-rep,#v-six,#v-ss,#v-dat,#v-int,.inf-tools{display:none!important}
+  #v-inf,#v-inf[hidden]{display:block!important;padding:0!important}
+  .main{display:block!important;padding:0!important;max-width:none!important;margin:0!important}
+  .win{border:0!important;background:none!important}
+  .pwrap{overflow:visible;padding:0;background:none}
+  #printRoot{display:block}
+  .page{margin:0;box-shadow:none;break-after:page;page-break-after:always}
+  .page:last-child{break-after:auto;page-break-after:auto}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+</style>
+
+<div class="bar-top"><div class="in">
+  <div class="brand"><svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><rect width="26" height="26" rx="5" fill="var(--accent)"/><path d="M3 20c4 0 5-12 10-12s6 12 10 12" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/><path d="M6 5v16M20 5v16" stroke="#fff" stroke-opacity=".55" stroke-width="1.2" stroke-dasharray="2 2"/></svg><div class="brand-t"><b>Análisis de Capacidad de Proceso</b><small>Por Sergio Anfossi Laclote - Black Belt Six Sigma</small></div></div>
+  <nav class="ribbon" role="tablist">
+    <button role="tab" id="tb-rep" data-v="rep" aria-selected="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 14h12M4 14V9M7 14V5M10 14V7M13 14v-4"/></svg><span>Informe de capacidad</span></button>
+    <button role="tab" id="tb-six" data-v="six" aria-selected="false"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2" width="5" height="3.5"/><rect x="9" y="2" width="5" height="3.5"/><rect x="2" y="6.3" width="5" height="3.5"/><rect x="9" y="6.3" width="5" height="3.5"/><rect x="2" y="10.6" width="5" height="3.5"/><rect x="9" y="10.6" width="5" height="3.5"/></svg><span>Sixpack</span></button>
+    <button role="tab" id="tb-ss" data-v="ss" aria-selected="false"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.5 3h-8l4.5 5-4.5 5h8"/></svg><span>Six Sigma</span></button>
+    <button role="tab" id="tb-dat" data-v="dat" aria-selected="false"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="1"/><path d="M2 6h12M2 9.5h12M6 2.5v11"/></svg><span>Datos</span></button>
+    <button role="tab" id="tb-int" data-v="int" aria-selected="false"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3.5h10M3 6.5h10M3 9.5h7M3 12.5h5"/></svg><span>Interpretación</span></button>
+    <button role="tab" id="tb-inf" data-v="inf" aria-selected="false"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 1.8h5.5L12.5 5v9.2H4z"/><path d="M9.5 1.8V5h3M6 8.5h4.5M6 11h4.5"/></svg><span>Informe</span></button>
+  </nav>
+</div></div>
+
+<div class="main">
+  <aside class="win">
+    <header><h2>Entrada de datos</h2></header>
+    <div class="bd">
+      <div class="sec">
+        <h3 class="sec-h">Identificación</h3>
+        <label class="f">Cliente<input id="cli"></label>
+        <label class="f">Producto / característica<input id="prod"></label>
+        <label class="f">Referencia<input id="op"></label>
+      </div>
+      <div class="sec">
+        <h3 class="sec-h">Especificaciones</h3>
+        <div class="g3">
+          <label class="f"><span><i class="dot spec"></i>LIE</span><input id="lsl" type="text" inputmode="decimal" autocomplete="off"></label>
+          <label class="f"><span><i class="dot tgt"></i>Target</span><input id="tgt" type="text" inputmode="decimal" autocomplete="off"></label>
+          <label class="f"><span><i class="dot spec"></i>LSE</span><input id="usl" type="text" inputmode="decimal" autocomplete="off"></label>
+        </div>
+        <p class="note" style="margin:0">Deja un límite vacío para especificaciones unilaterales.</p>
+      </div>
+      <div class="sec">
+        <h3 class="sec-h">Datos</h3>
+        <label class="f">Mediciones (C1), una por línea · coma decimal (128,5)<textarea id="data" spellcheck="false"></textarea></label>
+        <span class="note" id="cnt"></span>
+        <span class="err" id="dErr"></span>
+        <details class="opts"><summary>Opciones de cálculo</summary>
+          <div style="display:grid;gap:8px">
+            <div class="g2">
+              <label class="f">Tamaño de subgrupo<input id="k" type="number" min="1" max="25" step="1"></label>
+              <div class="f" style="display:grid;gap:3px;font-size:12px;color:var(--muted);font-weight:600">Método σ dentro (automático)<span id="wmAuto" style="font:500 13px var(--f-ui);color:var(--ink);padding:6px 0"></span></div>
+            </div>
+            <label class="chk"><input type="checkbox" id="ub"><span>Usar constante de insesgo c₄ en σ general</span></label>
+            <p class="note" style="margin:0">Se recomienda marcar esta casilla cuando N&lt;50</p>
+          </div>
+        </details>
+      </div>
+      <span class="stale" id="stale" hidden>Hay cambios sin calcular. Pulsa Calcular para actualizar el informe.</span>
+      <button class="btn pri calc" id="calc">Calcular</button>
+      <button type="button" class="linkbtn" id="clr">Limpiar todos los datos</button>
+      <div id="clrConfirm" class="row" hidden><span class="note">¿Borrar todos los datos y resultados?</span><button class="btn danger" id="clrYes">Sí, borrar</button><button class="btn" id="clrNo">Cancelar</button></div>
+    </div>
+  </aside>
+
+  <section class="win" style="min-width:0">
+    <div id="empty" class="empty" hidden>
+      <svg width="150" height="90" viewBox="0 0 150 90" aria-hidden="true"><line x1="10" y1="80" x2="140" y2="80" stroke="var(--line)" stroke-width="1.5"/><g fill="var(--bar)" stroke="var(--bar-line)" stroke-width=".8"><rect x="34" y="62" width="12" height="18"/><rect x="46" y="44" width="12" height="36"/><rect x="58" y="28" width="12" height="52"/><rect x="70" y="22" width="12" height="58"/><rect x="82" y="34" width="12" height="46"/><rect x="94" y="52" width="12" height="28"/><rect x="106" y="68" width="12" height="12"/></g><path d="M22 79c14 0 24-60 50-60s38 60 54 60" fill="none" stroke="var(--within)" stroke-width="2"/><line x1="20" y1="8" x2="20" y2="80" stroke="var(--spec)" stroke-dasharray="4 3" stroke-width="1.5"/><line x1="130" y1="8" x2="130" y2="80" stroke="var(--spec)" stroke-dasharray="4 3" stroke-width="1.5"/></svg>
+      <h2>Sin análisis todavía</h2>
+      <p>Ingresa las mediciones y al menos un límite de especificación (LIE o LSE), y pulsa <b>Calcular</b> para generar el informe.</p>
+    </div>
+    <!-- REPORT -->
+    <div id="v-rep" class="rep">
+      <div><h1 id="rTitle"></h1></div>
+      <div class="sub" id="rSub"></div>
+      <div class="kpis" id="kpis"></div>
+      <div class="verdict" id="verdict"></div>
+      <div class="cols">
+        <div class="stack">
+          <div class="stat"><h3>Datos del proceso</h3><dl id="pd"></dl></div>
+          <div class="stat"><h3>Normalidad (Anderson-Darling)</h3><dl id="nd"></dl></div>
+        </div>
+        <div class="hist chart"><div id="hist"></div>
+          <div class="legend"><span><i style="border-color:var(--within)"></i>Dentro de</span><span><i style="border-color:var(--overall);border-top-style:dashed"></i>General</span></div></div>
+        <div class="stack">
+          <div class="stat"><h3>Capacidad general</h3><dl id="oc"></dl></div>
+          <div class="stat"><h3>Capacidad potencial (dentro de)</h3><dl id="wc"></dl></div>
+        </div>
+      </div>
+      <div class="stat"><h3>Desempeño</h3><div class="tbl"><table id="perf"></table></div></div>
+    </div>
+    <!-- SIXPACK -->
+    <div id="v-six" class="rep" hidden>
+      <h1 id="sTitle"></h1>
+      <div class="six">
+        <div class="cell chart"><h3 id="c1t">Gráfica I</h3><div id="c1"></div></div>
+        <div class="cell chart"><h3>Histograma de capacidad</h3><div id="c2"></div></div>
+        <div class="cell chart"><h3 id="c3t">Gráfica MR</h3><div id="c3"></div></div>
+        <div class="cell chart"><h3>Gráfica de probabilidad normal</h3><div id="c4"></div></div>
+        <div class="cell chart"><h3>Últimas 25 observaciones</h3><div id="c5"></div></div>
+        <div class="cell chart"><h3>Gráfica de capacidad</h3><div id="c6"></div></div>
+      </div>
+      <p class="note" id="sixNote" style="margin:0"></p>
+    </div>
+    <!-- SIX SIGMA -->
+    <div id="v-ss" class="rep" hidden>
+      <h1>Resumen estadístico y Six Sigma</h1>
+      <div class="tbl"><table id="ssT"></table></div>
+      <h1 style="font-size:16px;text-align:left">Tabla de referencia de nivel sigma</h1>
+      <div class="tbl"><table id="sigT"></table></div>
+      <p class="note" style="margin:0">El DPMO clásico supone dos colas simétricas a ±Z. El DPMO Six Sigma usa una sola cola y un desplazamiento de 1,5σ; con la definición de la planilla equivale a la proporción defectuosa total × 10⁶.</p>
+    </div>
+    <!-- PRINTABLE REPORT -->
+    <div id="v-inf" class="rep" hidden>
+      <div class="inf-tools"><span class="note" id="infNote">Vista previa del informe en tamaño carta (2 páginas).</span><button class="btn pri" id="printBtn" hidden>Imprimir informe</button></div>
+      <div class="pwrap"><div id="printRoot"></div></div>
+    </div>
+    <!-- INTERPRETATION -->
+    <div id="v-int" class="rep" hidden><h1 id="iTitle"></h1><div id="interp" class="interp"></div></div>
+    <!-- DATA -->
+    <div id="v-dat" class="rep" hidden>
+      <h1>Procesamiento de datos</h1>
+      <div class="tbl"><table id="datT"></table></div>
+    </div>
+  </section>
+</div>
+<footer class="appfoot">Análisis de Capacidad de Proceso · Por Sergio Anfossi – Black Belt Six Sigma Certificado</footer>
+<div class="status" role="status"><div class="in" id="status"><span>Sin cálculo</span></div></div>
+
+<script>
+// CapStat engine — capability analysis replicating "Cálculo Cpk.xlsm" plus Minitab-style extras
+const CAP = (() => {
+  // ---- Normal distribution (W. J. Cody erfc, relative accuracy ~1e-15 in the tails) ----
+  function erfc(x) {
+    const ax = Math.abs(x); let r;
+    if (ax < 0.5) {
+      const t = x * x;
+      const p = [3.16112374387056560e00, 1.13864154151050156e02, 3.77485237685302021e02, 3.20937758913846947e03, 1.85777706184603153e-1];
+      const q = [2.36012909523441209e01, 2.44024637934444173e02, 1.28261652607737228e03, 2.84423683343917062e03];
+      let num = p[4] * t, den = t;
+      for (let i = 0; i < 3; i++) { num = (num + p[i]) * t; den = (den + q[i]) * t; }
+      return 1 - x * (num + p[3]) / (den + q[3]);
+    }
+    if (ax < 4) {
+      const c = [5.64188496988670089e-1, 8.88314979438837594e00, 6.61191906371416295e01, 2.98635138197400131e02, 8.81952221241769090e02, 1.71204761263407058e03, 2.05107837782607147e03, 1.23033935479799725e03, 2.15311535474403846e-8];
+      const d = [1.57449261107098347e01, 1.17693950891312499e02, 5.37181101862009858e02, 1.62138957456669019e03, 3.29079923573345963e03, 4.36261909014324716e03, 3.43936767414372164e03, 1.23033935480374942e03];
+      let num = c[8] * ax, den = ax;
+      for (let i = 0; i < 7; i++) { num = (num + c[i]) * ax; den = (den + d[i]) * ax; }
+      r = (num + c[7]) / (den + d[7]);
+    } else {
+      const p = [3.05326634961232344e-1, 3.60344899949804439e-1, 1.25781726111229246e-1, 1.60837851487422766e-2, 6.58749161529837803e-4, 1.63153871373020978e-2];
+      const q = [2.56852019228982242e00, 1.87295284992346725e00, 5.27905102951428412e-1, 6.05183413124413191e-2, 2.33520497626869185e-3];
+      const z = 1 / (ax * ax);
+      let num = p[5] * z, den = z;
+      for (let i = 0; i < 4; i++) { num = (num + p[i]) * z; den = (den + q[i]) * z; }
+      r = z * (num + p[4]) / (den + q[4]);
+      r = (0.564189583547756287 - r) / ax;
+    }
+    const xs = Math.trunc(ax * 16) / 16, del = (ax - xs) * (ax + xs);
+    r = Math.exp(-xs * xs) * Math.exp(-del) * r;
+    return x < 0 ? 2 - r : r;
+  }
+  const Phi = z => 0.5 * erfc(-z / Math.SQRT2);           // P(Z <= z)
+  const Q = z => 0.5 * erfc(z / Math.SQRT2);              // P(Z > z), accurate in the upper tail
+  const pdf = (x, m, s) => Math.exp(-0.5 * ((x - m) / s) ** 2) / (s * Math.sqrt(2 * Math.PI));
+  function invPhi(p) { // Acklam + one Halley step
+    if (p <= 0) return -Infinity; if (p >= 1) return Infinity;
+    const a = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02, 1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00];
+    const b = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02, 6.680131188771972e+01, -1.328068155288572e+01];
+    const c = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00, -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00];
+    const d = [7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00, 3.754408661907416e+00];
+    let x, q, r;
+    if (p < 0.02425) { q = Math.sqrt(-2 * Math.log(p)); x = (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1); }
+    else if (p > 1 - 0.02425) { q = Math.sqrt(-2 * Math.log(1 - p)); x = -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1); }
+    else { q = p - 0.5; r = q * q; x = (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q / (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1); }
+    const e = (p < 0.5 ? Phi(x) - p : -(Q(x) - (1 - p)));
+    const u = e * Math.sqrt(2 * Math.PI) * Math.exp(x * x / 2);
+    return x - u / (1 + x * u / 2);
+  }
+  // Z from an upper-tail probability without losing precision (Excel: NORM.S.INV(1-p))
+  function zFromTail(p) {
+    if (!(p > 0)) return Infinity; if (p >= 1) return -Infinity;
+    let z = -invPhi(p);
+    for (let k = 0; k < 3; k++) { const f = Q(z) - p; z += f / (Math.exp(-z * z / 2) / Math.sqrt(2 * Math.PI)); }
+    return z;
+  }
+  // ---- constants ----
+  const D2 = [0, 0, 1.128, 1.693, 2.059, 2.326, 2.534, 2.704, 2.847, 2.970, 3.078, 3.173, 3.258, 3.336, 3.407, 3.472, 3.532, 3.588, 3.640, 3.689, 3.735, 3.778, 3.819, 3.858, 3.895, 3.931];
+  const D4 = [0, 0, 3.267, 2.574, 2.282, 2.114, 2.004, 1.924, 1.864, 1.816, 1.777, 1.744, 1.717, 1.693, 1.672, 1.653, 1.637, 1.622, 1.608, 1.597, 1.585, 1.575, 1.566, 1.557, 1.548, 1.541];
+  const D3 = [0, 0, 0, 0, 0, 0, 0, 0.076, 0.136, 0.184, 0.223, 0.256, 0.283, 0.307, 0.328, 0.347, 0.363, 0.378, 0.391, 0.403, 0.415, 0.425, 0.434, 0.443, 0.451, 0.459];
+  const lgamma = x => { const g = 7, c = [0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313, -176.61502916214059, 12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7];
+    if (x < 0.5) return Math.log(Math.PI / Math.sin(Math.PI * x)) - lgamma(1 - x); x -= 1; let a = c[0]; const t = x + g + 0.5; for (let i = 1; i < 9; i++) a += c[i] / (x + i); return 0.5 * Math.log(2 * Math.PI) + (x + 0.5) * Math.log(t) - t + Math.log(a); };
+  const c4 = n => n < 2 ? 1 : Math.sqrt(2 / (n - 1)) * Math.exp(lgamma(n / 2) - lgamma((n - 1) / 2));
+
+  // ---- descriptive helpers ----
+  const mean = a => a.reduce((s, v) => s + v, 0) / a.length;
+  const sd = a => { const m = mean(a); return Math.sqrt(a.reduce((s, v) => s + (v - m) ** 2, 0) / (a.length - 1)); };
+  const median = a => { const b = [...a].sort((x, y) => x - y), n = b.length; return n % 2 ? b[(n - 1) / 2] : (b[n / 2 - 1] + b[n / 2]) / 2; };
+
+  function andersonDarling(x) {
+    const n = x.length, m = mean(x), s = sd(x), y = [...x].sort((a, b) => a - b);
+    let S = 0;
+    for (let i = 0; i < n; i++) {
+      const zi = (y[i] - m) / s, zj = (y[n - 1 - i] - m) / s;
+      S += (2 * (i + 1) - 1) * (Math.log(Phi(zi)) + Math.log(Q(zj)));
+    }
+    const A = -n - S / n, As = A * (1 + 0.75 / n + 2.25 / (n * n));
+    let p;
+    if (As >= 0.6) p = Math.exp(1.2937 - 5.709 * As + 0.0186 * As * As);
+    else if (As >= 0.34) p = Math.exp(0.9177 - 4.279 * As - 1.38 * As * As);
+    else if (As >= 0.2) p = 1 - Math.exp(-8.318 + 42.796 * As - 59.938 * As * As);
+    else p = 1 - Math.exp(-13.436 + 101.14 * As - 223.73 * As * As);
+    return { A, As, p: Math.max(0, Math.min(1, p)) };
+  }
+
+  // opts: {lsl, target, usl, k (subgroup size, 1–25), unbias: bool (c4 on overall σ)}
+  function analyze(x, o) {
+    const n = x.length, k = Math.max(1, Math.floor(o.k || 1));
+    const has = v => v !== null && v !== undefined && v !== "" && isFinite(v);
+    const L = has(o.lsl) ? +o.lsl : null, U = has(o.usl) ? +o.usl : null, T = has(o.target) ? +o.target : null;
+    const xbar = mean(x), s = sd(x);
+    const mr = x.slice(1).map((v, i) => Math.abs(v - x[i]));
+    const mrbar = mr.length ? mean(mr) : NaN;
+    // within sigma
+    let sw, wmethod, groups = [];
+    // Automatic selection (ASQ / AIAG SPC): n = 1 → MR̄/d₂ ; 2 ≤ n ≤ 8 → R̄/d₂ ; n ≥ 9 → S̄/c₄
+    if (k === 1) { sw = mrbar / 1.128; wmethod = "MR̄ / d₂ (d₂ = 1,128, rango móvil de 2)"; }
+    else {
+      for (let i = 0; i + k <= n; i += k) groups.push(x.slice(i, i + k));
+      if (k <= 8) { const rbar = mean(groups.map(g => Math.max(...g) - Math.min(...g))); sw = rbar / D2[k]; wmethod = `R̄ / d₂ (d₂ = ${String(D2[k]).replace(".", ",")})`; }
+      else { const sbar = mean(groups.map(sd)), c = c4(k); sw = sbar / c; wmethod = `S̄ / c₄ (c₄ = ${c.toFixed(4).replace(".", ",")})`; }
+    }
+    const so = o.unbias ? s / c4(n) : s;
+    const side = (sig) => {
+      const pl = L !== null ? Phi((L - xbar) / sig) : 0;
+      const pu = U !== null ? Q((U - xbar) / sig) : 0;
+      const C = (L !== null && U !== null) ? (U - L) / (6 * sig) : null;
+      const CL = L !== null ? (xbar - L) / (3 * sig) : null, CU = U !== null ? (U - xbar) / (3 * sig) : null;
+      const Ck = Math.min(...[CL, CU].filter(v => v !== null));
+      const pd = pl + pu, z = zFromTail(pd);
+      return { sigma: sig, pl, pu, pd, C, CL, CU, Ck, z, zl: CL !== null ? 3 * CL : null, zu: CU !== null ? 3 * CU : null,
+        dpmoClassic: 1e6 * 2 * Q(z), probAcum: 2 * Phi(z) - 1, sigmaLevel: z + 1.5, dpmo: 1e6 * Q(z), yield: Phi(z),
+        ppmL: pl * 1e6, ppmU: pu * 1e6, ppm: pd * 1e6 };
+    };
+    const W = side(sw), O = side(so);
+    const cpm = (L !== null && U !== null && T !== null) ? (U - L) / (6 * Math.sqrt(so * so + (xbar - T) ** 2)) : null;
+    const obsL = L !== null ? x.filter(v => v < L).length : 0, obsU = U !== null ? x.filter(v => v > U).length : 0;
+    // control limits
+    let chart;
+    if (k === 1) chart = { type: "I-MR", pts: x, cl: xbar, ucl: xbar + 3 * sw, lcl: xbar - 3 * sw, r: mr, rcl: mrbar, rucl: 3.267 * mrbar, rlcl: 0,
+      ptitle: "Gráfica de valores individuales (I)", pshort: "Gráfica I", pcen: "X̄", rtitle: "Gráfica de rango móvil (MR)", rshort: "Gráfica MR", rcen: "MR̄" };
+    else { const gm = groups.map(mean), cl = mean(gm);
+      const base = { pts: gm, cl, ucl: cl + 3 * sw / Math.sqrt(k), lcl: cl - 3 * sw / Math.sqrt(k), ptitle: "Gráfica de medias (X̄)", pshort: "Gráfica X̄", pcen: "X̿" };
+      if (k <= 8) { const gr = groups.map(g => Math.max(...g) - Math.min(...g)), rb = mean(gr);
+        chart = { ...base, type: "X̄-R", r: gr, rcl: rb, rucl: D4[k] * rb, rlcl: D3[k] * rb, rtitle: "Gráfica de rangos (R)", rshort: "Gráfica R", rcen: "R̄" }; }
+      else { const gs = groups.map(sd), sb = mean(gs), c = c4(k), f = 3 * Math.sqrt(1 - c * c) / c;
+        chart = { ...base, type: "X̄-S", r: gs, rcl: sb, rucl: (1 + f) * sb, rlcl: Math.max(0, 1 - f) * sb, rtitle: "Gráfica de desviaciones estándar (S)", rshort: "Gráfica S", rcen: "S̄" }; } }
+    return { n, k, L, U, T, xbar, s, so, sw, wmethod, mrbar, median: median(x), min: Math.min(...x), max: Math.max(...x),
+      cvw: sw / xbar, cvo: so / xbar, W, O, cpm, obs: { ppmL: obsL / n * 1e6, ppmU: obsU / n * 1e6, ppm: (obsL + obsU) / n * 1e6 },
+      ad: n >= 3 ? andersonDarling(x) : null, mr, chart };
+  }
+  return { analyze, Phi, Q, pdf, invPhi, zFromTail, c4, D2, mean, sd };
+})();
+if (typeof module !== "undefined") module.exports = CAP;
+
+</script>
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+const EX = {"A": {"cli": "Axis Logistica De Chile S.A.", "prod": "SELLO TAPA BIO MC DONALDS (128T114X85) PAPEL/PLA", "op": "FLE38686 (mayo 2026)", "lsl": 127, "target": 128, "usl": 129, "x": [128.5, 128, 128.1, 128, 128, 128, 128.2, 128.1, 128.3, 128, 128.3, 128, 128.2, 128.2, 128.1, 128.2, 128.1, 128, 128.1, 128.1, 128, 128.2, 128.3, 127.1, 128.5, 128.5, 128.3, 128.5, 128.4, 128.3, 128.4, 128.3, 128.3, 128.1, 128.3, 128.1, 128.1, 128, 128, 128, 128, 128, 128.2, 128.1, 128.1, 128, 128.1, 128.1, 128, 128.3, 128.3, 128.2, 128.3, 128.2, 128.2, 128, 128]}};
+const group = s => s.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+function fmtNum(v, d) { const s = Math.abs(v).toFixed(d), [i, f] = s.split("."); return (v < 0 && +s !== 0 ? "-" : "") + group(i) + (f ? "," + f : ""); }
+const sci = (v, d) => v.toExponential(d).replace(".", ",");
+function inputVal(v) { if (v === "" || v === null || v === undefined) return ""; if (typeof v !== "number") return String(v); const s = String(v); if (/e/i.test(s)) return s.replace(".", ","); const [i, f] = s.split("."); return (i.startsWith("-") ? "-" + group(i.slice(1)) : group(i)) + (f ? "," + f : ""); }
+function parseNum(t) { t = String(t).trim().replace(/\s/g, ""); if (t === "") return NaN; if (t.includes(",")) t = t.replace(/\./g, "").replace(",", "."); else if (/^-?\d{1,3}(\.\d{3})+$/.test(t)) t = t.replace(/\./g, ""); return t === "" ? NaN : Number(t); }
+const nf = (v, d = 4) => (v === null || v === undefined || Number.isNaN(v)) ? "*" : !isFinite(v) ? (v > 0 ? "∞" : "−∞") :
+  fmtNum(v, d);
+const ppm = v => v === null || v === undefined ? "*" : v < 0.01 && v > 0 ? v.toExponential(2).replace(".", ",") : nf(v, 2);
+const pct = v => { if (v === null || v === undefined || Number.isNaN(v)) return "*"; const p = v * 100; return (p > 0 && p < 1e-4 ? p.toExponential(2).replace(".", ",") : nf(p, 4)) + " %"; };
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let scopeEl = document.documentElement, IB = null;
+const css = n => getComputedStyle(scopeEl).getPropertyValue(n).trim();
+
+let S = { cli: "", prod: "", op: "", lsl: "", tgt: "", usl: "", data: "", k: 1, wm: "rbar", ub: false };
+const ids = ["cli", "prod", "op", "lsl", "tgt", "usl", "data", "k", "ub"];
+function save() { try { localStorage.setItem("capstat", JSON.stringify(S)); } catch (e) {} }
+function loadS() { try { const s = JSON.parse(localStorage.getItem("capstat")); if (s && typeof s.data === "string") return s; } catch (e) {} return null; }
+function toForm() { ids.forEach(i => { const el = $("#" + i); if (el.type === "checkbox") el.checked = !!S[i]; else el.value = S[i]; }); if (typeof wmLabel === "function") wmLabel(); }
+let CS = null; // snapshot of the last calculated inputs
+function setEx(id) { const e = EX[id]; S = { cli: e.cli || "", prod: e.prod, op: e.op || "", lsl: inputVal(e.lsl), tgt: inputVal(e.target), usl: inputVal(e.usl), data: e.x.map(inputVal).join("\n"), k: 1, wm: "rbar", ub: false }; toForm(); calculate(); }
+ids.forEach(i => { const el = $("#" + i); el.addEventListener(el.type === "checkbox" || el.tagName === "SELECT" ? "change" : "input", () => { S[i] = el.type === "checkbox" ? el.checked : el.value; $("#stale").hidden = !CS; if (i === "data") { const n = parse(S.data).filter(isFinite).length; $("#cnt").textContent = `N = ${n}`; } }); });
+
+function parse(txt) { return txt.split(/[\n;\t ]+/).map(t => t.trim()).filter(t => t !== "").map(parseNum); }
+const num = v => { if (v === "" || v === null || v === undefined) return null; const n = typeof v === "number" ? v : parseNum(v); return isFinite(n) ? n : null; };
+
+// ---------- SVG helpers ----------
+function nice(range, n) { const raw = range / n, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p; return (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * p; }
+function ticks(a, b, n = 6) { const st = nice(b - a, n), t = []; for (let v = Math.ceil(a / st) * st; v <= b + st * 1e-9; v += st) t.push(+v.toFixed(10)); return t; }
+const fmtT = v => { const a = Math.abs(v); const d = a >= 100 ? (Number.isInteger(v) ? 0 : 1) : a >= 1 ? 2 : 3; let s = fmtNum(+v.toFixed(d), d); if (s.includes(",")) s = s.replace(/0+$/, "").replace(/,$/, ""); return s; };
+
+function histogram(r, x, W = 620, H = 330, compact = false) {
+  const m = { l: 44, r: 14, t: compact ? 10 : 30, b: 36 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
+  const sig = Math.max(r.so, r.sw || 0);
+  let lo = Math.min(r.min, r.xbar - 3.4 * sig), hi = Math.max(r.max, r.xbar + 3.4 * sig);
+  if (r.L !== null) lo = Math.min(lo, r.L); if (r.U !== null) hi = Math.max(hi, r.U);
+  const pad = (hi - lo) * 0.06; lo -= pad; hi += pad;
+  // bins: width multiple of data resolution
+  const sorted = [...x].sort((a, b) => a - b); let res = Infinity; for (let i = 1; i < sorted.length; i++) { const d = sorted[i] - sorted[i - 1]; if (d > 1e-12) res = Math.min(res, d); }
+  let w = nice(r.max - r.min || sig, Math.max(6, Math.min(18, Math.round(Math.sqrt(r.n) * 1.2))));
+  if (isFinite(res) && w < res) w = res; if (isFinite(res)) w = Math.round(w / res) * res || res;
+  const bins = new Map(); x.forEach(v => { const c = Math.round(v / w); bins.set(c, (bins.get(c) || 0) + 1); });
+  const X = v => m.l + (v - lo) / (hi - lo) * pw;
+  const dens = c => c / (r.n * w);
+  const maxD = Math.max(...[...bins.values()].map(dens), r.sw > 0 ? 1 / (r.sw * Math.sqrt(2 * Math.PI)) : 0, 1 / (r.so * Math.sqrt(2 * Math.PI)));
+  const Y = d => m.t + ph - d / (maxD * 1.08) * ph;
+  let s = `<rect x="${m.l}" y="${m.t}" width="${pw}" height="${ph}" fill="none" stroke="${css("--line")}"/>`;
+  for (let g = 1; g < 5; g++) { const gy = (m.t + ph * g / 5).toFixed(1); s += `<line x1="${m.l}" x2="${m.l + pw}" y1="${gy}" y2="${gy}" stroke="${css("--grid")}" stroke-width="1"/>`; }
+  for (const [c, cnt] of bins) { const a = (c - 0.5) * w, b = (c + 0.5) * w; s += `<rect x="${X(a).toFixed(1)}" y="${Y(dens(cnt)).toFixed(1)}" width="${Math.max(X(b) - X(a), 1).toFixed(1)}" height="${(m.t + ph - Y(dens(cnt))).toFixed(1)}" fill="${css("--bar")}" stroke="${css("--bar-line")}" stroke-width=".8"/>`; }
+  const curve = (sg, col, dash) => { if (!(sg > 0)) return ""; let p = ""; for (let i = 0; i <= 200; i++) { const v = lo + (hi - lo) * i / 200; p += `${X(v).toFixed(1)},${Y(CAP.pdf(v, r.xbar, sg)).toFixed(1)} `; } return `<polyline points="${p}" fill="none" stroke="${col}" stroke-width="2" ${dash ? 'stroke-dasharray="6 4"' : ""}/>`; };
+  s += curve(r.sw, css("--within")) + curve(r.so, css("--overall"), true);
+  const vline = (v, lab, col, dash) => v === null ? "" : `<line x1="${X(v)}" x2="${X(v)}" y1="${m.t}" y2="${m.t + ph}" stroke="${col}" stroke-width="1.6" ${dash ? 'stroke-dasharray="5 3"' : ""}/>` + (compact ? "" : `<text x="${X(v)}" y="${m.t - 8}" text-anchor="middle" font-size="12" font-weight="700" fill="${col}">${lab}</text>`);
+  s += vline(r.L, "LIE", css("--spec"), true) + vline(r.T, "Target", css("--target"), true) + vline(r.U, "LSE", css("--spec"), true);
+  ticks(lo, hi, compact ? 4 : 7).forEach(t => { if (X(t) >= m.l && X(t) <= m.l + pw) s += `<line x1="${X(t)}" x2="${X(t)}" y1="${m.t + ph}" y2="${m.t + ph + 4}" stroke="${css("--muted")}"/><text x="${X(t)}" y="${m.t + ph + 17}" text-anchor="middle" font-size="11" fill="${css("--muted")}">${fmtT(t)}</text>`; });
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Histograma con curvas normales y límites de especificación">${s}</svg>`;
+}
+
+function ctrlChart(pts, cl, ucl, lcl, label, W = 400, H = 210, x0 = 1) {
+  const m = { l: 46, r: 64, t: 10, b: 26 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
+  const all = [...pts, ucl, lcl, cl].filter(isFinite); let lo = Math.min(...all), hi = Math.max(...all); const pd = (hi - lo) * 0.08 || 1; lo -= pd; hi += pd;
+  const X = i => m.l + (pts.length > 1 ? i / (pts.length - 1) : 0.5) * pw, Y = v => m.t + ph - (v - lo) / (hi - lo) * ph;
+  let s = `<rect x="${m.l}" y="${m.t}" width="${pw}" height="${ph}" fill="none" stroke="${css("--line")}"/>`;
+  const hl = (v, lab, col, dash) => `<line x1="${m.l}" x2="${m.l + pw}" y1="${Y(v)}" y2="${Y(v)}" stroke="${col}" stroke-width="1.3" ${dash ? 'stroke-dasharray="5 3"' : ""}/><text x="${m.l + pw + 4}" y="${Y(v) + 4}" font-size="10.5" fill="${col}">${lab}=${fmtT(v)}</text>`;
+  s += hl(ucl, "LCS", css("--spec"), true) + hl(cl, label, css("--target")) + hl(lcl, "LCI", css("--spec"), true);
+  s += `<polyline fill="none" stroke="${css("--accent")}" stroke-width="1.3" points="${pts.map((v, i) => X(i).toFixed(1) + "," + Y(v).toFixed(1)).join(" ")}"/>`;
+  pts.forEach((v, i) => { const out = v > ucl + 1e-12 || v < lcl - 1e-12; s += `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="${out ? 3.6 : 2.4}" fill="${out ? css("--bad") : css("--accent")}"/>`; });
+  ticks(lo, hi, 4).forEach(t => { if (t >= lo && t <= hi) s += `<text x="${m.l - 5}" y="${Y(t) + 4}" text-anchor="end" font-size="10.5" fill="${css("--muted")}">${fmtT(t)}</text>`; });
+  const step = Math.max(1, Math.ceil(pts.length / 8)); for (let i = 0; i < pts.length; i += step) s += `<text x="${X(i)}" y="${H - 8}" text-anchor="middle" font-size="10.5" fill="${css("--muted")}">${i + x0}</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" role="img">${s}</svg>`;
+}
+
+function probPlot(r, x, W = 400, H = 230) {
+  const m = { l: 46, r: 12, t: 10, b: 28 }, pw = W - m.l - m.r, ph = H - m.t - m.b, n = x.length, y = [...x].sort((a, b) => a - b);
+  const z = y.map((_, i) => CAP.invPhi((i + 1 - 0.3) / (n + 0.4)));
+  const zl = CAP.invPhi(0.3 / (n + 0.4)) - 0.3, zh = -zl; let lo = Math.min(y[0], r.xbar + zl * r.s), hi = Math.max(y[n - 1], r.xbar + zh * r.s); const p = (hi - lo) * .05; lo -= p; hi += p;
+  const X = v => m.l + (v - lo) / (hi - lo) * pw, Y = q => m.t + ph - (q - zl) / (zh - zl) * ph;
+  let s = `<rect x="${m.l}" y="${m.t}" width="${pw}" height="${ph}" fill="none" stroke="${css("--line")}"/>`;
+  [1, 5, 10, 30, 50, 70, 90, 95, 99].forEach(pc => { const q = CAP.invPhi(pc / 100); if (q > zl && q < zh) s += `<line x1="${m.l}" x2="${m.l + pw}" y1="${Y(q)}" y2="${Y(q)}" stroke="${css("--line")}" stroke-dasharray="2 3"/><text x="${m.l - 5}" y="${Y(q) + 4}" text-anchor="end" font-size="10" fill="${css("--muted")}">${pc}</text>`; });
+  s += `<line x1="${X(r.xbar + zl * r.s)}" y1="${Y(zl)}" x2="${X(r.xbar + zh * r.s)}" y2="${Y(zh)}" stroke="${css("--within")}" stroke-width="1.6"/>`;
+  y.forEach((v, i) => s += `<circle cx="${X(v).toFixed(1)}" cy="${Y(z[i]).toFixed(1)}" r="2.3" fill="${css("--accent")}"/>`);
+  ticks(lo, hi, 4).forEach(t => { if (t >= lo && t <= hi) s += `<text x="${X(t)}" y="${H - 9}" text-anchor="middle" font-size="10.5" fill="${css("--muted")}">${fmtT(t)}</text>`; });
+  return `<svg viewBox="0 0 ${W} ${H}" role="img">${s}<text x="${m.l + 6}" y="${m.t + 14}" font-size="11" fill="${css("--ink")}">AD = ${nf(r.ad.A, 3)}   p ${r.ad.p < 0.005 ? "< 0,005" : "= " + nf(r.ad.p, 3)}</text></svg>`;
+}
+
+function last25(r, x, W = 400, H = 210) {
+  const m = { l: 46, r: 12, t: 10, b: 26 }, pw = W - m.l - m.r, ph = H - m.t - m.b, sub = x.slice(-25 * r.k), k = r.k;
+  const ng = Math.ceil(sub.length / k); let lo = Math.min(...sub), hi = Math.max(...sub); const p = (hi - lo) * .1 || 1; lo -= p; hi += p;
+  const X = g => m.l + (ng > 1 ? g / (ng - 1) : .5) * pw, Y = v => m.t + ph - (v - lo) / (hi - lo) * ph;
+  let s = `<rect x="${m.l}" y="${m.t}" width="${pw}" height="${ph}" fill="none" stroke="${css("--line")}"/>`;
+  sub.forEach((v, i) => s += `<circle cx="${X(Math.floor(i / k)).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="2.6" fill="${css("--accent")}"/>`);
+  ticks(lo, hi, 4).forEach(t => { if (t >= lo && t <= hi) s += `<text x="${m.l - 5}" y="${Y(t) + 4}" text-anchor="end" font-size="10.5" fill="${css("--muted")}">${fmtT(t)}</text>`; });
+  const first = Math.floor((x.length - sub.length) / k) + 1, step = Math.max(1, Math.ceil(ng / 6));
+  for (let g = 0; g < ng; g += step) s += `<text x="${X(g)}" y="${H - 8}" text-anchor="middle" font-size="10.5" fill="${css("--muted")}">${g + first}</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" role="img">${s}</svg>`;
+}
+
+function capPlot(r, W = 400, H = 210) {
+  const m = { l: 70, r: 14, t: 16, b: 50 }, pw = W - m.l - m.r;
+  const items = [["Dentro de", r.sw, css("--within")], ["General", r.so, css("--overall")]];
+  let lo = Math.min(r.xbar - 3.3 * Math.max(r.sw, r.so)), hi = r.xbar + 3.3 * Math.max(r.sw, r.so);
+  if (r.L !== null) lo = Math.min(lo, r.L); if (r.U !== null) hi = Math.max(hi, r.U); const p = (hi - lo) * .06; lo -= p; hi += p;
+  const X = v => m.l + (v - lo) / (hi - lo) * pw; let s = "";
+  items.forEach(([lab, sg, col], i) => { const y = m.t + 18 + i * 44; s += `<text x="${m.l - 8}" y="${y + 4}" text-anchor="end" font-size="11" fill="${css("--ink")}">${lab}</text><line x1="${X(r.xbar - 3 * sg)}" x2="${X(r.xbar + 3 * sg)}" y1="${y}" y2="${y}" stroke="${col}" stroke-width="2"/>` +
+    [-3, 3].map(q => `<line x1="${X(r.xbar + q * sg)}" x2="${X(r.xbar + q * sg)}" y1="${y - 7}" y2="${y + 7}" stroke="${col}" stroke-width="2"/>`).join("") + `<circle cx="${X(r.xbar)}" cy="${y}" r="3.5" fill="${col}"/>`; });
+  const yb = m.t + 18 + 2 * 44; s += `<text x="${m.l - 8}" y="${yb + 4}" text-anchor="end" font-size="11" fill="${css("--ink")}">Especif.</text>`;
+  if (r.L !== null && r.U !== null) s += `<line x1="${X(r.L)}" x2="${X(r.U)}" y1="${yb}" y2="${yb}" stroke="${css("--spec")}" stroke-width="2"/>`;
+  [r.L, r.U].forEach(v => { if (v !== null) s += `<line x1="${X(v)}" x2="${X(v)}" y1="${yb - 7}" y2="${yb + 7}" stroke="${css("--spec")}" stroke-width="2"/>`; });
+  ticks(lo, hi, 4).forEach(t => { if (t >= lo && t <= hi) s += `<text x="${X(t)}" y="${H - 8}" text-anchor="middle" font-size="10.5" fill="${css("--muted")}">${fmtT(t)}</text>`; });
+  return `<svg viewBox="0 0 ${W} ${H}" role="img">${s}</svg>`;
+}
+
+const dl = rows => rows.map(([a, b, k]) => `<dt>${a}</dt><dd class="${k ? "k" : ""}">${b}</dd>`).join("");
+let last = null;
+
+function calculate() { CS = { ...S }; save(); $("#stale").hidden = true; if (!run()) { CS = null; showView(cur); } }
+function run() {
+  if (!CS) return false;
+  const S = CS;
+  const x = parse(S.data), bad = x.filter(v => !isFinite(v)).length, xs = x.filter(isFinite);
+  $("#cnt").textContent = `N = ${xs.length}`;
+  const lsl = num(S.lsl), usl = num(S.usl), tgt = num(S.tgt);
+  let msg = "";
+  if (bad) msg = `${bad} valor(es) no numérico(s) se ignoraron.`;
+  if (xs.length < 2) msg = "Ingresa al menos 2 mediciones.";
+  else if (lsl === null && usl === null) msg = "Ingresa al menos un límite de especificación (LIE o LSE).";
+  else if (lsl !== null && usl !== null && lsl >= usl) msg = "El LIE debe ser menor que el LSE.";
+  $("#dErr").textContent = msg;
+  if (xs.length < 2 || (lsl === null && usl === null) || (lsl !== null && usl !== null && lsl >= usl)) return false;
+  const k = Math.max(1, Math.min(25, parseInt(S.k) || 1));
+  if (k > 1 && xs.length < 2 * k) { $("#dErr").textContent = "Con subgrupos se necesitan al menos 2 subgrupos completos."; return false; }
+  const r = CAP.analyze(xs, { lsl, usl, target: tgt, k, unbias: S.ub }); last = r;
+  const name = S.prod || "C1";
+  $("#rTitle").textContent = `Informe de capacidad del proceso de ${name}`;
+  $("#sTitle").textContent = `Sixpack de capacidad del proceso de ${name}`;
+  $("#rSub").textContent = [S.cli && "Cliente: " + S.cli, S.op && "Referencia: " + S.op, "Fecha: " + new Date().toLocaleDateString("es-CL")].filter(Boolean).join("  ·  ");
+  // verdict
+  const v = r.W.Ck, vp = r.O.Ck, cls = c => c >= 1.33 ? "good" : c >= 1 ? "mid" : "bad", txt = c => c >= 1.33 ? "capaz" : c >= 1 ? "marginal" : "no capaz";
+  $("#verdict").innerHTML = `<span class="pill ${cls(v)}">Cpk ${nf(v, 2)} · ${txt(v)}</span><span class="pill ${cls(vp)}">Ppk ${nf(vp, 2)} · ${txt(vp)}</span>` +
+    (r.ad ? `<span class="pill ${r.ad.p < 0.05 ? "mid" : "good"}">${r.ad.p < 0.05 ? "Datos no normales (p " + (r.ad.p < 0.005 ? "< 0,005" : "= " + nf(r.ad.p, 3)) + ")" : "Normalidad aceptada (p = " + nf(r.ad.p, 3) + ")"}</span>` : "");
+  const ppmT = r.O.ppm, pcls = ppmT <= 63 ? "good" : ppmT <= 2700 ? "mid" : "bad", ptxt = { good: "bajo", mid: "moderado", bad: "alto" };
+  const kpi = (lab, val, c, t) => `<div class="kpi ${c}"><span>${lab}</span><b>${val}</b><em>${t}</em></div>`;
+  $("#kpis").innerHTML = kpi("Cp", nf(r.W.C, 2), cls(r.W.C), txt(r.W.C)) + kpi("Cpk", nf(v, 2), cls(v), txt(v)) + kpi("Pp", nf(r.O.C, 2), cls(r.O.C), txt(r.O.C)) + kpi("Ppk", nf(vp, 2), cls(vp), txt(vp)) +
+    kpi("PPM total", ppmT >= 1000 ? nf(ppmT, 0) : nf(ppmT, ppmT < 10 ? 2 : 1), pcls, "Nivel " + ptxt[pcls] + " · general");
+  $("#status").innerHTML = `<span>N <b>${r.n}</b></span><span>Subgrupo <b>${k}</b></span><span>σ dentro <b>${esc($("#wmAuto").textContent)}</b></span><span>c₄ <b>${S.ub ? "sí" : "no"}</b></span><span class="ok">Calculado <b>${new Date().toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" })}</b></span>`;
+  $("#pd").innerHTML = dl([["LIE", r.L === null ? "*" : nf(r.L, 4)], ["Target", r.T === null ? "*" : nf(r.T, 4)], ["LSE", r.U === null ? "*" : nf(r.U, 4)], ["Media (X̄)", nf(r.xbar, 5), 1], ["Mediana", nf(r.median, 4)], ["N", r.n, 1], ["Mínimo", nf(r.min, 4)], ["Máximo", nf(r.max, 4)], ["σ general", nf(r.so, 5), 1], ["σ dentro de", nf(r.sw, 5), 1], ["CV general", nf(r.cvo * 100, 3) + " %"], ["CV dentro de", nf(r.cvw * 100, 3) + " %"]]);
+  $("#nd").innerHTML = r.ad ? dl([["AD", nf(r.ad.A, 3)], ["Valor p", r.ad.p < 0.005 ? "< 0,005" : nf(r.ad.p, 3), 1]]) : dl([["AD", "*"]]);
+  $("#oc").innerHTML = dl([["Pp", nf(r.O.C, 2)], ["PPL", nf(r.O.CL, 2)], ["PPU", nf(r.O.CU, 2)], ["Ppk", nf(r.O.Ck, 2), 1], ["Cpm", nf(r.cpm, 2)]]);
+  $("#wc").innerHTML = dl([["Cp", nf(r.W.C, 2)], ["CPL", nf(r.W.CL, 2)], ["CPU", nf(r.W.CU, 2)], ["Cpk", nf(r.W.Ck, 2), 1]]);
+  $("#perf").innerHTML = `<tr><th class="l">Desempeño</th><th>Observado</th><th>Esperado general</th><th>Esperado dentro de</th></tr>` +
+    [["% &lt; LIE", r.obs.ppmL, r.O.ppmL, r.W.ppmL, r.L], ["% &gt; LSE", r.obs.ppmU, r.O.ppmU, r.W.ppmU, r.U], ["% total", r.obs.ppm, r.O.ppm, r.W.ppm, 1]]
+      .map(a => `<tr><td class="l">${a[0]}</td>${a.slice(1, 4).map(v => `<td class="n">${a[4] === null ? "*" : pct(v / 1e6)}</td>`).join("")}</tr>`).join("");
+  $("#hist").innerHTML = histogram(r, xs);
+  // sixpack
+  const ch = r.chart;
+  $("#c1t").textContent = ch.pshort; $("#c3t").textContent = ch.rshort;
+  $("#c1").innerHTML = ctrlChart(ch.pts, ch.cl, ch.ucl, ch.lcl, ch.pcen);
+  $("#c3").innerHTML = ctrlChart(ch.r, ch.rcl, ch.rucl, ch.rlcl, ch.rcen, 400, 210, ch.type === "I-MR" ? 2 : 1);
+  $("#c2").innerHTML = histogram(r, xs, 400, 230, true);
+  $("#c4").innerHTML = r.ad ? probPlot(r, xs) : "";
+  $("#c5").innerHTML = last25(r, xs);
+  $("#c6").innerHTML = capPlot(r);
+  const outI = ch.pts.filter(v => v > ch.ucl || v < ch.lcl).length, outR = ch.r.filter(v => v > ch.rucl).length;
+  $("#sixNote").textContent = `${ch.type}: ${outI} punto(s) fuera de límites en la gráfica de ${ch.type === "I-MR" ? "valores individuales" : "medias"} y ${outR} en la de rangos. σ dentro: ${r.wmethod}.` + (outI + outR ? " Un proceso fuera de control estadístico hace que Cpk no sea representativo." : "");
+  // six sigma table
+  const row = (lab, a, b, f) => `<tr><td class="l">${lab}</td><td class="n">${f(a)}</td><td class="n">${f(b)}</td></tr>`;
+  const W = r.W, O = r.O, f4 = v => nf(v, 4), f6 = v => v < 1e-3 && v > 0 ? v.toExponential(4).replace(".", ",") : nf(v, 6);
+  $("#ssT").innerHTML = `<tr><th class="l">Indicador</th><th>Corto plazo (σ dentro)</th><th>Largo plazo (σ general)</th></tr>` +
+    row("σ", W.sigma, O.sigma, v => nf(v, 6)) + row("% &lt; LIE", W.pl, O.pl, pct) + row("% &gt; LSE", W.pu, O.pu, pct) + row("Proporción defectuosa (PDCP / PDLP)", W.pd, O.pd, pct) +
+    row("Cp / Pp", W.C, O.C, f4) + row("CpL / PpL", W.CL, O.CL, f4) + row("CpU / PpU", W.CU, O.CU, f4) + row("Cpk / Ppk", W.Ck, O.Ck, f4) +
+    `<tr><td class="l">Cpm</td><td class="n">–</td><td class="n">${nf(r.cpm, 4)}</td></tr>` +
+    row("Nivel Z (Z bench)", W.z, O.z, f4) + row("Z.LEI", W.zl, O.zl, f4) + row("Z.LES", W.zu, O.zu, f4) + row("DPMO clásico (dos colas)", W.dpmoClassic, O.dpmoClassic, f6) +
+    row("Probabilidad acumulada", W.probAcum, O.probAcum, v => nf(v, 8)) + row("Capacidad σ (Z + 1,5)", W.sigmaLevel, O.sigmaLevel, f4) + row("DPMO Six Sigma", W.dpmo, O.dpmo, f6) + row("Rendimiento del proceso", W.yield, O.yield, v => nf(v * 100, 6) + " %");
+  // data table
+  const lim = v => (r.L !== null && v < r.L) || (r.U !== null && v > r.U);
+  $("#datT").innerHTML = `<tr><th>#</th><th>Obs.</th><th>MR</th><th>z (general)</th><th class="l">Estado</th></tr>` +
+    xs.map((v, i) => `<tr class="${lim(v) ? "hl" : ""}"><td class="n">${i + 1}</td><td class="n">${nf(v, 4)}</td><td class="n">${i ? nf(Math.abs(v - xs[i - 1]), 4) : ""}</td><td class="n">${nf((v - r.xbar) / r.so, 3)}</td><td class="l">${lim(v) ? "Fuera de especificación" : ""}</td></tr>`).join("") +
+    `<tr><td class="l" colspan="2"><b>MR̄</b></td><td class="n"><b>${nf(r.mrbar, 5)}</b></td><td></td><td></td></tr>`;
+  $("#iTitle").textContent = `Interpretación de resultados · ${name}`;
+  $("#interp").innerHTML = interpret(r, xs, S);
+  buildReport(r, xs, S);
+  showView(cur);
+  return true;
+}
+
+// ---------- Interpretation (rule-based, general → particular) ----------
+function interpret(r, xs, S) {
+  const f2 = v => nf(v, 2), f3 = v => nf(v, 3), P = v => pct(v);
+  const n = r.n, W = r.W, O = r.O, two = r.L !== null && r.U !== null;
+  const lvl = c => c >= 1.67 ? ["excelente", "good"] : c >= 1.33 ? ["capaz", "good"] : c >= 1 ? ["marginal", "mid"] : ["no capaz", "bad"];
+  const chip = (t, c) => `<span class="pill ${c}">${t}</span>`;
+  // --- statistics needed ---
+  const zq = 1.959964;
+  const ci = c => { const h = zq * Math.sqrt(1 / (9 * n) + c * c / (2 * (n - 1))); return [c - h, c + h]; };
+  const ciPpk = ci(O.Ck), ciCpk = ci(W.Ck);
+  const m3 = xs.reduce((s, v) => s + (v - r.xbar) ** 3, 0) / n, m2 = xs.reduce((s, v) => s + (v - r.xbar) ** 2, 0) / n, m4 = xs.reduce((s, v) => s + (v - r.xbar) ** 4, 0) / n;
+  const skew = m3 / m2 ** 1.5, kurt = m4 / (m2 * m2) - 3;
+  const sorted = [...xs].sort((a, b) => a - b); let res = Infinity; for (let i = 1; i < n; i++) { const d = sorted[i] - sorted[i - 1]; if (d > 1e-9) res = Math.min(res, d); }
+  const distinct = new Set(xs.map(v => +v.toFixed(9))).size;
+  const tol = two ? r.U - r.L : null, mid = two ? (r.L + r.U) / 2 : null;
+  const ratio = r.so / r.sw;
+  // control-chart tests on the I / X̄ chart
+  const ch = r.chart, pts = ch.pts;
+  const t1 = pts.map((v, i) => v > ch.ucl || v < ch.lcl ? i : -1).filter(i => i >= 0);
+  const t1r = ch.r.map((v, i) => v > ch.rucl ? i : -1).filter(i => i >= 0);
+  let t2 = [], run = 0, side = 0; pts.forEach((v, i) => { const s = Math.sign(v - ch.cl); if (s !== 0 && s === side) run++; else { run = s ? 1 : 0; side = s; } if (run === 9) t2.push(i); });
+  let t3 = [], tr = 1, dir = 0; for (let i = 1; i < pts.length; i++) { const d = Math.sign(pts[i] - pts[i - 1]); if (d !== 0 && d === dir) tr++; else { tr = d ? 2 : 1; dir = d; } if (tr === 6) t3.push(i); }
+  const unstable = t1.length + t1r.length + t2.length + t3.length > 0;
+  const outliers = xs.map((v, i) => Math.abs((v - r.xbar) / r.so) > 3 ? i : -1).filter(i => i >= 0);
+  const pos = i => (r.k === 1 ? "obs. " : "subgrupo ") + (i + 1);
+  const unit = r.k === 1 ? "observación" : "subgrupo";
+  const nonNormal = r.ad && r.ad.p < 0.05;
+  // --- 1. Diagnóstico general ---
+  const [lo, co] = lvl(O.Ck), [lw, cw] = lvl(W.Ck);
+  let h = `<section class="it"><h2>1. Diagnóstico general</h2>
+  <p>${chip("Ppk " + f2(O.Ck) + " · " + lo, co)} ${chip("Cpk " + f2(W.Ck) + " · " + lw, cw)}</p>
+  <p>Con el desempeño real (largo plazo, σ general = ${f3(r.so)}), el proceso es <b>${lo}</b>: se espera que el <b>${P(O.pd)}</b> de la producción quede fuera de especificación, equivalente a ${nf(O.dpmo, 1)} piezas por millón y a un nivel de ${f2(O.sigmaLevel)}σ con el desplazamiento de 1,5σ. `;
+  h += W.Ck > O.Ck * 1.15 ? `En el corto plazo (σ dentro = ${f3(r.sw)}) el proceso es <b>${lw}</b>, lo que indica que la máquina tiene capacidad intrínseca mejor de la que se observa en el tiempo.</p>` :
+    `La capacidad de corto plazo (Cpk ${f2(W.Ck)}) es similar a la de largo plazo, por lo que lo observado en el tiempo refleja la capacidad intrínseca del proceso.</p>`;
+  h += `<p class="note">Referencias habituales: Ppk ≥ 1,33 para procesos establecidos, ≥ 1,67 para características críticas o lanzamientos (PPAP).</p></section>`;
+  // --- 2. Validez del análisis ---
+  const val = [];
+  val.push(n < 30 ? `<li><b>Tamaño de muestra insuficiente (N = ${n}).</b> Con menos de 30 datos los índices son muy inciertos: el intervalo de confianza del 95 % para Ppk va de ${f2(ciPpk[0])} a ${f2(ciPpk[1])}.</li>` :
+    n < 100 ? `<li><b>Tamaño de muestra moderado (N = ${n}).</b> El intervalo de confianza del 95 % para Ppk va de ${f2(ciPpk[0])} a ${f2(ciPpk[1])}${ciPpk[0] < 1.33 && O.Ck >= 1.33 ? "; el límite inferior queda bajo 1,33, así que la conclusión de \"capaz\" aún no es concluyente" : ""}. Con 100 o más datos el intervalo se estrecha.</li>` :
+    `<li><b>Tamaño de muestra adecuado (N = ${n}).</b> Intervalo de confianza del 95 % para Ppk: ${f2(ciPpk[0])} a ${f2(ciPpk[1])}.</li>`);
+  if (unstable) {
+    const parts = [];
+    if (t1.length) parts.push(`${t1.length} punto(s) fuera de los límites de control en la ${ch.pshort.replace("Gráfica", "gráfica")} (${t1.slice(0, 6).map(pos).join(", ")})`);
+    if (t1r.length) parts.push(`${t1r.length} valor(es) fuera de límite en la ${ch.rshort.replace("Gráfica", "gráfica")}`);
+    if (t2.length) parts.push(`${t2.length} racha(s) de 9 puntos seguidos al mismo lado de la línea central, señal de un desplazamiento de la media`);
+    if (t3.length) parts.push(`${t3.length} tendencia(s) de 6 puntos seguidos subiendo o bajando, señal de deriva (desgaste, temperatura, consumo de material)`);
+    val.push(`<li><b>El proceso no está bajo control estadístico.</b> Se detectaron ${parts.join("; ")}. Mientras existan causas especiales, los índices de capacidad no predicen el comportamiento futuro.</li>`);
+  } else val.push(`<li><b>Proceso estable.</b> No hay puntos fuera de límites, rachas ni tendencias en las gráficas de control, por lo que los índices son representativos.</li>`);
+  if (r.ad) val.push(nonNormal ? `<li><b>Los datos no siguen una distribución normal</b> (Anderson-Darling = ${f3(r.ad.A)}, p ${r.ad.p < 0.005 ? "< 0,005" : "= " + f3(r.ad.p)}). Los porcentajes fuera de especificación calculados con la normal pueden estar subestimados o sobreestimados, sobre todo en las colas. ${Math.abs(skew) > 0.5 ? `La distribución es asimétrica hacia la ${skew > 0 ? "derecha (cola hacia valores altos)" : "izquierda (cola hacia valores bajos)"}, con asimetría ${f2(skew)}. ` : ""}${distinct <= 10 ? `Solo hay ${distinct} valores distintos, lo que sugiere que la resolución del instrumento (${nf(res, 4)}) discretiza los datos y por sí sola puede provocar el rechazo de la normalidad. ` : ""}</li>` :
+    `<li><b>Normalidad aceptada</b> (Anderson-Darling p = ${f3(r.ad.p)}). El modelo normal usado para estimar los % fuera de especificación es adecuado.</li>`);
+  if (two && isFinite(res)) val.push(res > tol / 10 ? `<li><b>Resolución de medición insuficiente.</b> El incremento mínimo entre datos (${nf(res, 4)}) es mayor que 1/10 de la tolerancia (${nf(tol / 10, 4)}). El instrumento no distingue bien la variación del proceso.</li>` :
+    `<li><b>Resolución de medición adecuada:</b> el incremento mínimo (${nf(res, 4)}) es menor que 1/10 de la tolerancia.</li>`);
+  h += `<section class="it"><h2>2. Validez del análisis</h2><ul>${val.join("")}</ul></section>`;
+  // --- 3. Centrado vs dispersión ---
+  let c3 = "";
+  if (two) {
+    const kc = Math.abs(r.xbar - mid) / (tol / 2);
+    const nearer = O.CU < O.CL ? "el límite superior (LSE)" : "el límite inferior (LIE)";
+    c3 += `<p>La tolerancia es ${nf(tol, 4)} y el proceso ocupa ${nf(6 * r.so / tol * 100, 1)} % de ella con su dispersión general (±3σ), o ${nf(6 * r.sw / tol * 100, 1)} % con la dispersión de corto plazo. `;
+    c3 += O.C >= 1.33 ? `La dispersión por sí sola es aceptable (Pp ${f2(O.C)}).` : `La dispersión por sí sola ya es excesiva (Pp ${f2(O.C)} &lt; 1,33): aun perfectamente centrado, el proceso no sería capaz.`;
+    c3 += `</p><p>La media (${nf(r.xbar, 4)}) está desplazada ${nf(r.xbar - mid, 4)} respecto del centro de la tolerancia (${nf(mid, 4)}), un ${nf(kc * 100, 1)} % de la semitolerancia, hacia ${nearer}. `;
+    c3 += (O.C - O.Ck) > 0.1 ? `Ese descentrado reduce Ppk de ${f2(O.C)} (si estuviera centrado) a ${f2(O.Ck)}: <b>el centrado es una oportunidad relevante</b>.` : `El descentrado es pequeño y no es la causa principal de la pérdida de capacidad.`;
+    if (r.T !== null && Math.abs(r.T - mid) > 1e-9) c3 += ` El target (${nf(r.T, 4)}) no coincide con el centro de la tolerancia; centrar en el target maximiza Cpm, mientras que centrar en el punto medio maximiza Ppk.`;
+    if (r.T !== null) c3 += ` Cpm = ${f2(r.cpm)}, que mide a la vez dispersión y distancia al target.`;
+    c3 += `</p>`;
+    if (O.pu > 0 || O.pl > 0) c3 += `<p>Del ${P(O.pd)} esperado fuera de especificación, ${nf(O.pd > 0 ? O.pu / O.pd * 100 : 0, 1)} % corresponde a piezas sobre el LSE y ${nf(O.pd > 0 ? O.pl / O.pd * 100 : 0, 1)} % a piezas bajo el LIE.</p>`;
+  } else {
+    const L = r.L !== null;
+    c3 = `<p>La especificación es unilateral (${L ? "solo LIE" : "solo LSE"}), por lo que no existe Cp ni Pp. La capacidad depende de la distancia de la media al límite: ${f2(L ? (r.xbar - r.L) / r.so : (r.U - r.xbar) / r.so)} desviaciones estándar generales. Alejar la media del límite o reducir la dispersión tienen el mismo efecto.</p>`;
+  }
+  h += `<section class="it"><h2>3. Centrado y dispersión</h2>${c3}</section>`;
+  // --- 4. Corto vs largo plazo ---
+  let c4 = `<p>La σ general es ${nf(ratio, 2)} veces la σ dentro de ${r.k === 1 ? "observaciones consecutivas" : "subgrupos"}. `;
+  c4 += ratio > 1.3 ? `<b>Hay una fuente importante de variación entre períodos</b> (cambios de turno, lote de materia prima, ajustes, desgaste o temperatura) que no aparece entre mediciones consecutivas. Si se elimina, Ppk podría acercarse a Cpk (${f2(W.Ck)}).` :
+    ratio < 0.9 ? `La variación de corto plazo es mayor que la general, algo poco habitual: puede deberse a un muestreo que alterna entre cavidades, cabezales o posiciones, o a ruido de medición.` :
+    `Corto y largo plazo son coherentes: la variación está dominada por causas comunes del propio proceso.`;
+  c4 += `</p>`;
+  h += `<section class="it"><h2>4. Variación de corto y largo plazo</h2>${c4}</section>`;
+  // --- 5. Hallazgos particulares ---
+  const p5 = [];
+  p5.push(`Observado: ${r.obs.ppm > 0 ? `${Math.round(r.obs.ppm * n / 1e6)} ${unit === "observación" ? "medición(es)" : "medición(es)"} fuera de especificación (${P(r.obs.ppm / 1e6)})` : "ninguna medición fuera de especificación"}; esperado según la normal: ${P(O.pd)}.${r.obs.ppm / 1e6 > O.pd * 3 && r.obs.ppm > 0 ? " Lo observado supera claramente lo esperado, lo que confirma colas más pesadas que la normal o causas especiales." : ""}`);
+  if (outliers.length) p5.push(`${outliers.length} valor(es) a más de 3σ de la media (${outliers.slice(0, 6).map(i => `obs. ${i + 1} = ${nf(xs[i], 4)}`).join(", ")}). Conviene revisar si corresponden a errores de medición, arranques o cambios de lote.`);
+  p5.push(`Rango observado ${nf(r.min, 4)} a ${nf(r.max, 4)}${two ? `, que ocupa ${nf((r.max - r.min) / tol * 100, 1)} % de la tolerancia` : ""}. Mediana ${nf(r.median, 4)} frente a media ${nf(r.xbar, 4)}${Math.abs(r.median - r.xbar) > 0.1 * r.so ? ", una diferencia que confirma asimetría" : ""}.`);
+  if (Math.abs(kurt) > 1) p5.push(kurt > 0 ? `La distribución es más puntiaguda que la normal (curtosis en exceso ${f2(kurt)}): la mayoría de los datos está muy cerca de la media y unos pocos se alejan mucho, típico de una mezcla de condiciones o de valores atípicos.` : `La distribución es más plana que la normal (curtosis en exceso ${f2(kurt)}), típico de una mezcla de dos o más niveles del proceso o de una deriva durante la toma de datos.`);
+  if (t1r.length) p5.push(`Los saltos grandes entre mediciones consecutivas (${t1r.slice(0, 6).map(i => pos(i + (r.k === 1 ? 1 : 0))).join(", ")}) inflan la σ de corto plazo; revisar qué ocurrió en esos momentos.`);
+  h += `<section class="it"><h2>5. Hallazgos particulares</h2><ul>${p5.map(x => `<li>${x}</li>`).join("")}</ul></section>`;
+  // --- 6. Recomendaciones (ordered by impact) ---
+  const rec = [];
+  const target133 = two ? tol / (6 * 1.33) : null;
+  if (unstable || ratio > 1.3) rec.push({ score: 100 + Math.max(0, W.Ck - O.Ck) * 50, imp: "Alto", t: "Estabilizar el proceso eliminando causas especiales",
+    d: `Investigar los puntos y rachas señalados (cambios de lote, ajustes de operador, arranques, temperatura). Estandarizar el ajuste de máquina y registrar los eventos junto a las mediciones. Llevar Ppk hacia Cpk significaría pasar de ${f2(O.Ck)} a cerca de ${f2(W.Ck)}.` });
+  if (two && O.C - O.Ck > 0.1) rec.push({ score: 60 + (O.C - O.Ck) * 50, imp: O.C - O.Ck > 0.3 ? "Alto" : "Medio", t: `Centrar el proceso en ${r.T !== null ? "el target" : "el punto medio"} (${nf(r.T !== null ? r.T : mid, 4)})`,
+    d: `${(r.T !== null ? r.T : mid) > r.xbar ? "Subir" : "Bajar"} el ajuste nominal en ${nf(Math.abs((r.T !== null ? r.T : mid) - r.xbar), 4)} unidades. Es normalmente la acción más barata y rápida: Ppk subiría de ${f2(O.Ck)} hasta ${f2(O.C)} sin tocar la variación. Usar la gráfica I-MR para confirmar el nuevo nivel.` });
+  if (two && O.C < 1.33) rec.push({ score: 50 + (1.33 - O.C) * 40, imp: O.C < 1 ? "Alto" : "Medio", t: "Reducir la variación por causas comunes",
+    d: `Para alcanzar Pp = 1,33 la σ general debe bajar de ${f3(r.so)} a ${f3(target133)} (−${nf((1 - target133 / r.so) * 100, 0)} %). Requiere un análisis de las fuentes de variación (diagrama de Ishikawa, DOE, mantenimiento de componentes críticos, control de materia prima) o una mejora tecnológica.` });
+  if (nonNormal) rec.push({ score: 40, imp: "Medio", t: "Confirmar la distribución antes de comprometer cifras",
+    d: `${distinct <= 10 ? "Mejorar la resolución de la medición o registrar más decimales, y luego " : ""}evaluar si los datos son una mezcla de condiciones (separar por turno, máquina o lote) o si corresponde un análisis no normal (transformación de Box-Cox o distribución de Weibull). Los % fuera de especificación de este informe deben tomarse como aproximados.` });
+  if (two && isFinite(res) && res > tol / 10) rec.push({ score: 45, imp: "Medio", t: "Mejorar el sistema de medición", d: `Usar un instrumento con resolución de al menos ${nf(tol / 10, 4)} y realizar un estudio R&R para cuantificar cuánta de la variación observada proviene de la medición.` });
+  if (n < 100) rec.push({ score: 20, imp: "Bajo", t: "Ampliar la muestra", d: `Recolectar al menos 100 datos (idealmente 25 subgrupos de 4 a 5) que cubran varios turnos, lotes y operadores, para que Ppk represente la variación real y su intervalo de confianza sea estrecho.` });
+  if (O.Ck >= 1.67 && !unstable) rec.push({ score: 10, imp: "Bajo", t: "Mantener y optimizar el control", d: `El proceso tiene holgura. Se puede evaluar reducir la frecuencia de inspección, mantener la gráfica I-MR como control de rutina y revisar con el cliente si las especificaciones permiten optimizar costo (velocidad, consumo de material).` });
+  rec.sort((a, b) => b.score - a.score);
+  const ic = i => i === "Alto" ? "bad" : i === "Medio" ? "mid" : "good";
+  h += `<section class="it"><h2>6. Recomendaciones, en orden de impacto</h2><ol class="rec">${rec.map(x => `<li><div class="row"><b>${x.t}</b> ${chip("Impacto " + x.imp.toLowerCase(), ic(x.imp))}</div><p>${x.d}</p></li>`).join("")}</ol>
+  <p class="note">Interpretación generada automáticamente a partir de los resultados. Debe complementarse con el conocimiento del proceso.</p></section>`;
+  // ---- brief version for the printable report ----
+  const shortCenter = two ? ((O.C - O.Ck) > 0.1
+      ? `La media (${nf(r.xbar, 4)}) está desplazada ${nf(Math.abs(r.xbar - mid), 4)} hacia ${O.CU < O.CL ? "el LSE" : "el LIE"} (${nf(Math.abs(r.xbar - mid) / (tol / 2) * 100, 1)} % de la semitolerancia). Ese descentrado baja Ppk de ${f2(O.C)} a ${f2(O.Ck)}.`
+      : `El proceso está razonablemente centrado (desplazamiento de ${nf(Math.abs(r.xbar - mid) / (tol / 2) * 100, 1)} % de la semitolerancia); la capacidad la determina principalmente la dispersión, que ocupa ${nf(6 * r.so / tol * 100, 1)} % de la tolerancia (Pp ${f2(O.C)}).`)
+    : `Especificación unilateral: la media está a ${f2(r.L !== null ? (r.xbar - r.L) / r.so : (r.U - r.xbar) / r.so)} σ generales del límite.`;
+  const shortVar = `La σ general es ${nf(ratio, 2)} veces la σ dentro. ` + (ratio > 1.3 ? `Existe variación importante entre períodos (turnos, lotes, ajustes); eliminarla acercaría Ppk a Cpk (${f2(W.Ck)}).` : ratio < 0.9 ? `La variación de corto plazo supera a la general; revisar el esquema de muestreo o el ruido de medición.` : `Corto y largo plazo son coherentes: predomina la variación común del proceso.`);
+  const top = rec[0];
+  IB = {
+    chips: `${chip("Ppk " + f2(O.Ck) + " · " + lo, co)} ${chip("Cpk " + f2(W.Ck) + " · " + lw, cw)}` + (r.ad ? ` ${chip(nonNormal ? "Datos no normales" : "Normalidad aceptada", nonNormal ? "mid" : "good")}` : "") + ` ${chip(unstable ? "Fuera de control estadístico" : "Proceso estable", unstable ? "bad" : "good")}`,
+    summary: `Con su desempeño real (largo plazo) el proceso es <b>${lo}</b>: Ppk ${f2(O.Ck)} (IC 95 %: ${f2(ciPpk[0])} a ${f2(ciPpk[1])}), con ${P(O.pd)} esperado fuera de especificación (${nf(O.dpmo, 1)} ppm, ${f2(O.sigmaLevel)}σ). ` +
+      (W.Ck > O.Ck * 1.15 ? `En el corto plazo es <b>${lw}</b> (Cpk ${f2(W.Ck)}): la máquina tiene más capacidad de la que se observa en el tiempo.` : `La capacidad de corto plazo es similar (Cpk ${f2(W.Ck)}).`),
+    checks: [
+      { s: n >= 100 ? "ok" : n >= 30 ? "mid" : "ko", t: "Muestra:", d: `N = ${n}${n < 100 ? "; se recomiendan 100 o más datos" : ""}. IC 95 % de Ppk: ${f2(ciPpk[0])} a ${f2(ciPpk[1])}.` },
+      { s: unstable ? "ko" : "ok", t: "Estabilidad:", d: unstable ? `fuera de control (${[t1.length && t1.length + " punto(s) fuera de límites", t1r.length && t1r.length + " rango(s) fuera de límite", t2.length && "rachas de 9 puntos", t3.length && "tendencias de 6 puntos"].filter(Boolean).join(", ")}). Los índices no predicen el desempeño futuro.` : "sin señales de causas especiales." },
+      ...(r.ad ? [{ s: nonNormal ? "mid" : "ok", t: "Normalidad:", d: nonNormal ? `rechazada (A-D p ${r.ad.p < 0.005 ? "< 0,005" : "= " + f3(r.ad.p)})${Math.abs(skew) > 0.5 ? ", asimetría " + f2(skew) : ""}${distinct <= 10 ? `, solo ${distinct} valores distintos` : ""}. Los % estimados son aproximados.` : `aceptada (A-D p = ${f3(r.ad.p)}).` }] : []),
+      ...(two && isFinite(res) ? [{ s: res > tol / 10 ? "ko" : "ok", t: "Resolución:", d: `${nf(res, 4)} ${res > tol / 10 ? "es mayor" : "es menor"} que 1/10 de la tolerancia (${nf(tol / 10, 4)}).` }] : [])
+    ],
+    center: shortCenter, variation: shortVar,
+    conclusion: (O.Ck >= 1.33 && !unstable ? `El proceso cumple el criterio de capacidad (Ppk ≥ 1,33)` : `El proceso no cumple aún el criterio de capacidad de forma confiable (Ppk ≥ 1,33 con proceso estable)`) +
+      (top ? `. La acción de mayor impacto es <b>${top.t.charAt(0).toLowerCase() + top.t.slice(1)}</b>.` : ".") +
+      (outliers.length ? ` Revisar ${outliers.length === 1 ? "el valor atípico" : "los valores atípicos"} (${outliers.slice(0, 4).map(i => "obs. " + (i + 1)).join(", ")}).` : ""),
+    recs: rec
+  };
+  return h;
+}
+
+// ---------- Printable report (letter, 2 pages) ----------
+function buildReport(r, xs, S) {
+  const B = IB, O = r.O, W = r.W, f2 = v => nf(v, 2);
+  const prev = scopeEl; scopeEl = $("#printRoot");
+  const hist = histogram(r, xs, 700, 330);
+  const ch = r.chart;
+  const c1 = ctrlChart(ch.pts, ch.cl, ch.ucl, ch.lcl, ch.pcen, 400, 175);
+  const c2 = ctrlChart(ch.r, ch.rcl, ch.rucl, ch.rlcl, ch.rcen, 400, 175, ch.type === "I-MR" ? 2 : 1);
+  const c3 = r.ad ? probPlot(r, xs, 400, 190) : "";
+  const c4 = capPlot(r, 400, 175);
+  scopeEl = prev;
+  const name = S.prod || "C1", date = new Date().toLocaleDateString("es-CL");
+  const tile = (lab, v, cls) => `<div class="tile ${cls || ""}"><span>${lab}</span><b>${v}</b></div>`;
+  const cl = c => c >= 1.33 ? "good" : c >= 1 ? "mid" : "bad";
+  const dash = v => v === null || v === undefined ? "*" : v;
+  const head = (pg) => `<header class="ph"><div class="ph-l"><div><div class="pk">Informe de capacidad de proceso</div><div class="pt">${esc(name)}</div></div></div><div class="pm">${date}<br>Página ${pg} de 2</div></header>`;
+  const foot = `<footer class="pf">Análisis de Capacidad de Proceso</footer>`;
+  const meta = [["Cliente", S.cli], ["Referencia", S.op], ["N", r.n], ["LIE / Target / LSE", `${r.L === null ? "—" : nf(r.L, 4)} / ${r.T === null ? "—" : nf(r.T, 4)} / ${r.U === null ? "—" : nf(r.U, 4)}`]]
+    .filter(m => m[1] !== "" && m[1] !== undefined).map(m => `<div><span>${m[0]}</span><b>${esc(m[1])}</b></div>`).join("");
+  const row = (a, b) => `<tr><td>${a}</td><td>${b}</td></tr>`;
+  const p1 = `<div class="page">${head(1)}
+    <div class="meta">${meta}</div>
+    <div class="exec"><div class="verdicts">${B.chips}</div><p>${B.summary}</p></div>
+    <div class="tiles">${tile("Cpk", f2(W.Ck), cl(W.Ck))}${tile("Ppk", f2(O.Ck), cl(O.Ck))}${tile("Cp", f2(W.C))}${tile("Pp", f2(O.C))}${tile("Cpm", f2(r.cpm))}${tile("% fuera esp. (LP)", pct(O.pd))}${tile("Nivel σ (LP)", nf(O.sigmaLevel, 2))}</div>
+    <div class="fig">${hist}<div class="lg"><span><i class="w"></i>Dentro de</span><span><i class="o"></i>General</span><span><i class="s"></i>Límites de especificación</span></div></div>
+    <div class="two">
+      <table class="pt2"><tr><th colspan="2">Datos del proceso</th></tr>${row("Media (X̄)", nf(r.xbar, 5))}${row("Mediana", nf(r.median, 4))}${row("Mínimo / Máximo", nf(r.min, 4) + " / " + nf(r.max, 4))}${row("σ general (largo plazo)", nf(r.so, 5))}${row("σ dentro (corto plazo)", nf(r.sw, 5))}${row("Normalidad A-D (valor p)", r.ad ? (r.ad.p < 0.005 ? "&lt; 0,005" : nf(r.ad.p, 3)) : "*")}</table>
+      <table class="pt2"><tr><th>Capacidad</th><th>Dentro</th><th>General</th></tr>
+        <tr><td>Cp / Pp</td><td>${f2(W.C)}</td><td>${f2(O.C)}</td></tr><tr><td>CPL / PPL</td><td>${f2(W.CL)}</td><td>${f2(O.CL)}</td></tr><tr><td>CPU / PPU</td><td>${f2(W.CU)}</td><td>${f2(O.CU)}</td></tr><tr><td><b>Cpk / Ppk</b></td><td><b>${f2(W.Ck)}</b></td><td><b>${f2(O.Ck)}</b></td></tr>
+        <tr><td>% &lt; LIE</td><td>${r.L === null ? "*" : pct(W.pl)}</td><td>${r.L === null ? "*" : pct(O.pl)}</td></tr><tr><td>% &gt; LSE</td><td>${r.U === null ? "*" : pct(W.pu)}</td><td>${r.U === null ? "*" : pct(O.pu)}</td></tr><tr><td>% total</td><td>${pct(W.pd)}</td><td>${pct(O.pd)}</td></tr>
+        <tr><td>Observado fuera de esp.</td><td colspan="2">${pct(r.obs.ppm / 1e6)}</td></tr></table>
+    </div>${foot}</div>`;
+  const checks = B.checks.map(c => `<li class="s-${c.s}"><b>${c.t}</b> ${c.d}</li>`).join("");
+  const recs = B.recs.slice(0, 4).map(x => `<li><b>${x.t}</b> <span class="imp ${x.imp}">${x.imp}</span><br>${x.d}</li>`).join("");
+  const p2 = `<div class="page">${head(2)}
+    <div class="grid4">
+      <div><h4>${ch.ptitle}</h4>${c1}</div>
+      <div><h4>${ch.rtitle}</h4>${c2}</div>
+      <div><h4>Gráfica de probabilidad normal</h4>${c3}</div>
+      <div><h4>Intervalos ±3σ frente a la especificación</h4>${c4}</div>
+    </div>
+    <h3>Validez del análisis</h3><ul class="checks">${checks}</ul>
+    <h3>Interpretación</h3><p>${B.center}</p><p>${B.variation}</p>
+    <h3>Conclusión</h3><p>${B.conclusion}</p>
+    <h3>Recomendaciones en orden de impacto</h3><ol class="recs">${recs}</ol>
+    ${foot}</div>`;
+  $("#printRoot").innerHTML = p1 + p2;
+  fitPages();
+}
+function fitPages() {
+  if ($("#v-inf").hidden) return;
+  // fit check: shrink text slightly if a page overflows
+  document.querySelectorAll("#printRoot .page").forEach(pg => { let fs = 9.2; pg.style.fontSize = fs + "pt"; while (pg.scrollHeight > pg.clientHeight + 1 && fs > 7.4) { fs -= 0.2; pg.style.fontSize = fs + "pt"; } });
+}
+
+function sigmaTable() {
+  let h = `<tr><th>Nivel Z</th><th>DPMO (sin shift)</th><th>Prob. acumulada</th><th>Capac. σ (Z + 1,5)</th><th>DPMO (con shift 1,5σ)</th><th>Rendimiento</th></tr>`;
+  for (let z = -0.5; z <= 6.0001; z += 0.5) h += `<tr><td class="n">${nf(z, 1)}</td><td class="n">${nf(1e6 * 2 * CAP.Q(z), 3)}</td><td class="n">${nf(2 * CAP.Phi(z) - 1, 6)}</td><td class="n">${nf(z + 1.5, 1)}</td><td class="n">${nf(1e6 * CAP.Q(z), 3)}</td><td class="n">${nf(CAP.Phi(z) * 100, 5)} %</td></tr>`;
+  $("#sigT").innerHTML = h;
+}
+
+let cur = "rep";
+function showView(v) { cur = v; document.querySelectorAll(".ribbon button").forEach(b => b.setAttribute("aria-selected", b.dataset.v === v)); ["rep", "six", "ss", "dat", "int", "inf"].forEach(k => $("#v-" + k).hidden = !CS || k !== v); $("#empty").hidden = !!CS; if (v === "inf" && CS) fitPages(); }
+document.querySelectorAll(".ribbon button").forEach(b => b.onclick = () => showView(b.dataset.v));
+$("#calc").onclick = calculate;
+function wmLabel() { const k = Math.max(1, Math.min(25, parseInt($("#k").value) || 1));
+  $("#wmAuto").textContent = k === 1 ? "MR̄ / d₂ · gráfica I-MR" : k <= 8 ? "R̄ / d₂ · gráfica X̄-R" : "S̄ / c₄ · gráfica X̄-S"; }
+$("#k").addEventListener("input", wmLabel);
+(() => { let top = false; try { top = window.self === window.top; } catch (e) {}
+  if (top) { $("#printBtn").hidden = false; $("#infNote").textContent = "Vista previa en tamaño carta (2 páginas). Al imprimir, elige papel Carta y escala 100 %."; }
+  else $("#infNote").textContent = "Vista previa en tamaño carta (2 páginas). Para imprimir o guardar en PDF, abre el archivo HTML descargado en tu navegador y usa el botón Imprimir.";
+  $("#printBtn").onclick = () => { showView("inf"); fitPages(); window.print(); }; })();
+window.addEventListener("beforeprint", () => { if (CS) { const was = $("#v-inf").hidden; $("#v-inf").hidden = false; fitPages(); $("#v-inf").hidden = was; } });
+$("#clr").onclick = () => $("#clrConfirm").hidden = false;
+$("#clrNo").onclick = () => $("#clrConfirm").hidden = true;
+$("#clrYes").onclick = () => {
+  S = { cli: "", prod: "", op: "", lsl: "", tgt: "", usl: "", data: "", k: 1, wm: "rbar", ub: false }; CS = null; last = null;
+  toForm(); $("#clrConfirm").hidden = true; $("#stale").hidden = true; $("#dErr").textContent = ""; $("#cnt").textContent = "N = 0"; $("#status").innerHTML = "<span>Sin cálculo</span>"; save(); showView(cur);
+};
+const rerender = () => { if (CS) run(); };
+matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", rerender);
+new MutationObserver(rerender).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+const st = loadS();
+if (st) { S = { ...S, ...st }; toForm(); $("#cnt").textContent = `N = ${parse(S.data).filter(isFinite).length}`; if (S.data.trim()) calculate(); else showView(cur); } else setEx("A");
+sigmaTable();
+})();
+</script>
+
+</body></html>
