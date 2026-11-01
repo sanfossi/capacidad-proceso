@@ -233,7 +233,7 @@ tr.hl td{background:var(--bad-bg)}
       </div>
       <div class="sec">
         <h3 class="sec-h">Datos</h3>
-        <label class="f">Mediciones (C1), una por línea · coma decimal (128,5)<textarea id="data" spellcheck="false"></textarea></label>
+        <label class="f">Mediciones (C1), una por línea · coma decimal (116,18)<textarea id="data" spellcheck="false"></textarea></label>
         <span class="note" id="cnt"></span>
         <span class="err" id="dErr"></span>
         <details class="opts"><summary>Opciones de cálculo</summary>
@@ -458,7 +458,6 @@ if (typeof module !== "undefined") module.exports = CAP;
 <script>
 (() => {
 const $ = s => document.querySelector(s);
-const EX = {"A": {"cli": "Axis Logistica De Chile S.A.", "prod": "SELLO TAPA BIO MC DONALDS (128T114X85) PAPEL/PLA", "op": "FLE38686 (mayo 2026)", "lsl": 127, "target": 128, "usl": 129, "x": [128.5, 128, 128.1, 128, 128, 128, 128.2, 128.1, 128.3, 128, 128.3, 128, 128.2, 128.2, 128.1, 128.2, 128.1, 128, 128.1, 128.1, 128, 128.2, 128.3, 127.1, 128.5, 128.5, 128.3, 128.5, 128.4, 128.3, 128.4, 128.3, 128.3, 128.1, 128.3, 128.1, 128.1, 128, 128, 128, 128, 128, 128.2, 128.1, 128.1, 128, 128.1, 128.1, 128, 128.3, 128.3, 128.2, 128.3, 128.2, 128.2, 128, 128]}};
 const group = s => s.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 function fmtNum(v, d) { const s = Math.abs(v).toFixed(d), [i, f] = s.split("."); return (v < 0 && +s !== 0 ? "-" : "") + group(i) + (f ? "," + f : ""); }
 const sci = (v, d) => v.toExponential(d).replace(".", ",");
@@ -474,11 +473,10 @@ const css = n => getComputedStyle(scopeEl).getPropertyValue(n).trim();
 
 let S = { cli: "", prod: "", op: "", lsl: "", tgt: "", usl: "", data: "", k: 1, wm: "rbar", ub: false };
 const ids = ["cli", "prod", "op", "lsl", "tgt", "usl", "data", "k", "ub"];
-function save() { try { localStorage.setItem("capstat", JSON.stringify(S)); } catch (e) {} }
-function loadS() { try { const s = JSON.parse(localStorage.getItem("capstat")); if (s && typeof s.data === "string") return s; } catch (e) {} return null; }
+function save() { try { localStorage.setItem("capstat-v2", JSON.stringify(S)); } catch (e) {} }
+function loadS() { try { const s = JSON.parse(localStorage.getItem("capstat-v2")); if (s && typeof s.data === "string") return s; } catch (e) {} return null; }
 function toForm() { ids.forEach(i => { const el = $("#" + i); if (el.type === "checkbox") el.checked = !!S[i]; else el.value = S[i]; }); if (typeof wmLabel === "function") wmLabel(); }
 let CS = null; // snapshot of the last calculated inputs
-function setEx(id) { const e = EX[id]; S = { cli: e.cli || "", prod: e.prod, op: e.op || "", lsl: inputVal(e.lsl), tgt: inputVal(e.target), usl: inputVal(e.usl), data: e.x.map(inputVal).join("\n"), k: 1, wm: "rbar", ub: false }; toForm(); calculate(); }
 ids.forEach(i => { const el = $("#" + i); el.addEventListener(el.type === "checkbox" || el.tagName === "SELECT" ? "change" : "input", () => { S[i] = el.type === "checkbox" ? el.checked : el.value; $("#stale").hidden = !CS; if (i === "data") { const n = parse(S.data).filter(isFinite).length; $("#cnt").textContent = `N = ${n}`; } }); });
 
 function parse(txt) { return txt.split(/[\n;\t ]+/).map(t => t.trim()).filter(t => t !== "").map(parseNum); }
@@ -855,8 +853,9 @@ const rerender = () => { if (CS) run(); };
 matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", rerender);
 new MutationObserver(rerender).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
+try { localStorage.removeItem("capstat"); } catch (e) {}
 const st = loadS();
-if (st) { S = { ...S, ...st }; toForm(); $("#cnt").textContent = `N = ${parse(S.data).filter(isFinite).length}`; if (S.data.trim()) calculate(); else showView(cur); } else setEx("A");
+if (st) { S = { ...S, ...st }; toForm(); $("#cnt").textContent = `N = ${parse(S.data).filter(isFinite).length}`; if (S.data.trim()) calculate(); else showView(cur); } else { toForm(); $("#cnt").textContent = "N = 0"; showView(cur); }
 sigmaTable();
 })();
 </script>
